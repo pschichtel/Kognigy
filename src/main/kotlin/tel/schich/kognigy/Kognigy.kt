@@ -18,10 +18,11 @@ import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 data class Session(
-    val input: SendChannel<InputEvent>,
     val output: ReceiveChannel<OutputEvent>,
+    private val encoder: (InputEvent) -> Frame,
     private val wsSession: DefaultClientWebSocketSession,
 ) {
+    suspend fun send(event: InputEvent) = wsSession.send(encoder(event))
     suspend fun close(closeReason: CloseReason) = wsSession.close(closeReason)
 }
 
@@ -36,7 +37,9 @@ class Kognigy(
             throw IllegalArgumentException("Protocol must be http or https")
         }
 
-        val input = Channel<InputEvent>(Channel.UNLIMITED)
+        fun encodeInput(event: InputEvent): Frame =
+            encodeSocketIoPacket(json, encodeCognigyFrame(json, CognigyFrame.Event(event)))
+
         val output = Channel<OutputEvent>(Channel.UNLIMITED)
 
         val scheme =
@@ -49,8 +52,8 @@ class Kognigy(
             coroutineScope.launch {
                 try {
                     client.ws(urlString = wsUri) {
-                        continuation.resume(Session(input, output, this))
-                        handle(this, input, output)
+                        continuation.resume(Session(output, ::encodeInput, this))
+                        handle(this, output)
                     }
                 } catch (e: Exception) {
                     logger.error("WebSocket connection failed!", e)
@@ -60,25 +63,8 @@ class Kognigy(
         }
     }
 
-    private suspend fun handle(session: DefaultClientWebSocketSession, input: ReceiveChannel<InputEvent>, output: SendChannel<OutputEvent>) {
-        suspend fun sink(packet: SocketIoPacket) {
-            session.send(encodeSocketIoPacket(json, packet))
-        }
-
-        session.launch {
-            sendCognigyEvents(input, ::sink)
-        }
-
-        receiveCognigyEvents(session.incoming, output, ::sink)
-    }
-
-    private suspend fun sendCognigyEvents(input: ReceiveChannel<InputEvent>, sink: suspend (SocketIoPacket) -> Unit) {
-        for (event in input) {
-            val frame = encodeCognigyFrame(json, CognigyFrame.Event(event))
-            if (frame != null) {
-                sink(frame)
-            }
-        }
+    private suspend fun handle(session: DefaultClientWebSocketSession, output: SendChannel<OutputEvent>) {
+        receiveCognigyEvents(session.incoming, output) { encodeSocketIoPacket(json, it) }
     }
 
     private suspend fun receiveCognigyEvents(incoming: ReceiveChannel<Frame>, output: SendChannel<OutputEvent>, sink: suspend (SocketIoPacket) -> Unit) {
@@ -100,9 +86,7 @@ class Kognigy(
                                 }
                             }
                         }
-                        is SocketIoPacket.Ping -> {
-                            sink(SocketIoPacket.Pong)
-                        }
+                        is SocketIoPacket.Ping -> sink(SocketIoPacket.Pong)
                         is SocketIoPacket.Pong -> logger.info("socket.io pong")
                         is SocketIoPacket.Upgrade -> logger.info("socket.io upgrade")
                         is SocketIoPacket.Noop -> logger.info("socket.io noop")

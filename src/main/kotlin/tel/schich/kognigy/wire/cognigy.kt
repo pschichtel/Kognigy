@@ -108,10 +108,14 @@ fun parseCognigyFrame(json: Json, packet: SocketIoPacket.TextMessage) = when (va
     else -> BrokenPacket(packet, "unknown type: $id", null)
 }
 
+/**
+ * Encodes the data into a socket.io message packet. In theory a SerializationException could be thrown,
+ * it is very unlikely unless the entire project is misconfigured, since only known closed types are being encoded here.
+ */
 private inline fun <reified T: Any> data(json: Json, name: String, event: T) =
     SocketIoPacket.TextMessage("2${json.encodeToString(listOf(JsonPrimitive(name), json.encodeToJsonElement(event)))}")
 
-fun encodeCognigyFrame(json: Json, frame: CognigyFrame): SocketIoPacket? = when (frame) {
+fun encodeCognigyFrame(json: Json, frame: CognigyFrame): SocketIoPacket = when (frame) {
     is Noop -> SocketIoPacket.TextMessage("0")
     is CognigyFrame.Event -> {
         try {
@@ -123,8 +127,8 @@ fun encodeCognigyFrame(json: Json, frame: CognigyFrame): SocketIoPacket? = when 
                 is CognigyEvent.UnknownEvent -> SocketIoPacket.TextMessage(event.data)
             }
         } catch (e: SerializationException) {
-            KotlinLogging.logger {}.error(e) { "Failed to encode a cognigy frame: $frame" }
-            null
+            KotlinLogging.logger {}.error(e) { "failed to encode a cognigy frame: $frame" }
+            throw e
         }
     }
     is BrokenPacket -> frame.packet

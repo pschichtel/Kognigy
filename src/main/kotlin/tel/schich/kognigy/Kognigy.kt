@@ -9,9 +9,9 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.serialization.json.Json
 import mu.KLoggable
-import tel.schich.kognigy.wire.*
-import tel.schich.kognigy.wire.CognigyEvent.InputEvent
-import tel.schich.kognigy.wire.CognigyEvent.OutputEvent
+import tel.schich.kognigy.protocol.*
+import tel.schich.kognigy.protocol.CognigyEvent.InputEvent
+import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
 import java.net.URI
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException

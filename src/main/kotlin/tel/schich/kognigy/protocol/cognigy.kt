@@ -1,10 +1,10 @@
-package tel.schich.kognigy.wire
+package tel.schich.kognigy.protocol
 
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
 import mu.KotlinLogging
-import tel.schich.kognigy.wire.CognigyFrame.BrokenPacket
-import tel.schich.kognigy.wire.CognigyFrame.Noop
+import tel.schich.kognigy.protocol.CognigyFrame.BrokenPacket
+import tel.schich.kognigy.protocol.CognigyFrame.Noop
 
 sealed interface CognigyFrame {
     object Noop : CognigyFrame

@@ -1,4 +1,4 @@
-package tel.schich.kognigy.wire
+package tel.schich.kognigy.protocol
 
 import io.ktor.http.cio.websocket.*
 import kotlinx.serialization.Serializable

@@ -16,6 +16,9 @@ data class OutputData(val text: String, val data: JsonElement, val traceId: Stri
 
 sealed interface CognigyEvent {
 
+    sealed interface InputEvent : CognigyEvent
+    sealed interface OutputEvent : CognigyEvent
+
     @Serializable
     data class ProcessInput(
         val URLToken: String,
@@ -30,14 +33,14 @@ sealed interface CognigyEvent {
         val resetContext: Boolean,
         val text: String?,
         val data: JsonElement?,
-    ) : CognigyEvent {
+    ) : InputEvent {
         companion object {
             const val NAME = "processInput"
         }
     }
 
     @Serializable
-    sealed class Output : CognigyEvent {
+    sealed class Output : OutputEvent {
         @Serializable
         @SerialName("output")
         data class OutputOutput(val data: OutputData) : Output()
@@ -48,7 +51,7 @@ sealed interface CognigyEvent {
     }
 
     @Serializable
-    data class TypingStatus(val status: Status) : CognigyEvent {
+    data class TypingStatus(val status: Status) : OutputEvent {
 
         @Serializable
         enum class Status {
@@ -64,7 +67,7 @@ sealed interface CognigyEvent {
     }
 
     @Serializable
-    data class FinalPing(val type: Type) : CognigyEvent {
+    data class FinalPing(val type: Type) : OutputEvent {
 
         @Serializable
         enum class Type {

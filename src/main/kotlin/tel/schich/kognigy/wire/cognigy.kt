@@ -15,6 +15,9 @@ sealed interface CognigyFrame {
 @Serializable
 data class OutputData(val text: String, val data: JsonElement, val traceId: String, val disableSensitiveLogging: Boolean, val source: String)
 
+@Serializable
+data class ErrorData(val error: JsonElement)
+
 sealed interface CognigyEvent {
 
     sealed interface InputEvent : CognigyEvent
@@ -44,7 +47,10 @@ sealed interface CognigyEvent {
     sealed class Output : OutputEvent {
         @Serializable
         @SerialName("output")
-        data class OutputOutput(val data: OutputData) : Output()
+        data class Message(val data: OutputData) : Output()
+        @Serializable
+        @SerialName("error")
+        data class Error(val data: ErrorData)
 
         companion object {
             const val NAME = "output"
@@ -72,12 +78,30 @@ sealed interface CognigyEvent {
 
         @Serializable
         enum class Type {
+            @SerialName("cognigyStopFlow")
+            STOP_FLOW,
             @SerialName("regular")
             REGULAR,
+            @SerialName("error")
+            ERROR,
         }
 
         companion object {
             const val NAME = "finalPing"
+        }
+    }
+
+    @Serializable
+    data class TriggeredElement(val id: String, val isDisableSensitiveLogging: Boolean, val result: Boolean?) : OutputEvent {
+        companion object {
+            const val NAME = "triggeredElement"
+        }
+    }
+
+    @Serializable
+    data class Exception(val error: JsonElement) : OutputEvent {
+        companion object {
+            const val NAME = "exception"
         }
     }
 
@@ -97,6 +121,8 @@ fun parseCognigyFrame(json: Json, packet: SocketIoPacket.TextMessage) = when (va
                     CognigyEvent.Output.NAME -> json.decodeFromJsonElement<CognigyEvent.Output>(data)
                     CognigyEvent.TypingStatus.NAME -> json.decodeFromJsonElement<CognigyEvent.TypingStatus>(data)
                     CognigyEvent.FinalPing.NAME -> json.decodeFromJsonElement<CognigyEvent.FinalPing>(data)
+                    CognigyEvent.TriggeredElement.NAME -> json.decodeFromJsonElement<CognigyEvent.TriggeredElement>(data)
+                    CognigyEvent.Exception.NAME -> json.decodeFromJsonElement<CognigyEvent.Exception>(data)
                     else -> CognigyEvent.UnknownEvent(packet.data)
                 }
                 CognigyFrame.Event(event)
@@ -124,6 +150,8 @@ fun encodeCognigyFrame(json: Json, frame: CognigyFrame): SocketIoPacket = when (
                 is CognigyEvent.Output -> data(json, CognigyEvent.Output.NAME, event)
                 is CognigyEvent.TypingStatus -> data(json, CognigyEvent.TypingStatus.NAME, event)
                 is CognigyEvent.FinalPing -> data(json, CognigyEvent.FinalPing.NAME, event)
+                is CognigyEvent.TriggeredElement -> data(json, CognigyEvent.TriggeredElement.NAME, event)
+                is CognigyEvent.Exception -> data(json, CognigyEvent.Exception.NAME, event)
                 is CognigyEvent.UnknownEvent -> SocketIoPacket.TextMessage(event.data)
             }
         } catch (e: SerializationException) {

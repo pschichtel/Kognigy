@@ -64,18 +64,18 @@ class Kognigy(
     }
 
     private suspend fun handle(session: DefaultClientWebSocketSession, output: SendChannel<OutputEvent>) {
-        processWebsocketFrame(session.incoming, output) { encodeEngineIoPacket(json, it) }
+        for (frame in session.incoming) {
+            processWebsocketFrame(frame, output) { encodeEngineIoPacket(json, it) }
+        }
     }
 
-    private suspend fun processWebsocketFrame(incoming: ReceiveChannel<Frame>, output: SendChannel<OutputEvent>, sink: suspend (EngineIoPacket) -> Unit) {
-        for (frame in incoming) {
-            when (frame) {
-                is Frame.Text -> processEngineIoPacket(frame, output, sink)
-                is Frame.Binary -> logger.warn { "websocket binary, unable to process binary data: $frame" }
-                is Frame.Close -> logger.debug { "websocket close: $frame" }
-                is Frame.Ping -> logger.debug { "websocket ping: $frame" }
-                is Frame.Pong -> logger.debug { "websocket pong: $frame" }
-            }
+    private suspend fun processWebsocketFrame(frame: Frame, output: SendChannel<OutputEvent>, sink: suspend (EngineIoPacket) -> Unit) {
+        when (frame) {
+            is Frame.Text -> processEngineIoPacket(frame, output, sink)
+            is Frame.Binary -> logger.warn { "websocket binary, unable to process binary data: $frame" }
+            is Frame.Close -> logger.debug { "websocket close: $frame" }
+            is Frame.Ping -> logger.debug { "websocket ping: $frame" }
+            is Frame.Pong -> logger.debug { "websocket pong: $frame" }
         }
     }
 

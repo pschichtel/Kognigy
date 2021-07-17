@@ -64,42 +64,46 @@ class Kognigy(
     }
 
     private suspend fun handle(session: DefaultClientWebSocketSession, output: SendChannel<OutputEvent>) {
-        receiveCognigyEvents(session.incoming, output) { encodeEngineIoPacket(json, it) }
+        processWebsocketFrame(session.incoming, output) { encodeEngineIoPacket(json, it) }
     }
 
-    private suspend fun receiveCognigyEvents(incoming: ReceiveChannel<Frame>, output: SendChannel<OutputEvent>, sink: suspend (EngineIoPacket) -> Unit) {
+    private suspend fun processWebsocketFrame(incoming: ReceiveChannel<Frame>, output: SendChannel<OutputEvent>, sink: suspend (EngineIoPacket) -> Unit) {
         for (frame in incoming) {
             when (frame) {
-                is Frame.Text -> {
-                    when (val engineIoPacket = decodeEngineIoPacket(json, frame)) {
-                        is EngineIoPacket.Open -> logger.debug("engine.io open: $engineIoPacket")
-                        is EngineIoPacket.Close -> logger.debug("engine.io close")
-                        is EngineIoPacket.TextMessage -> {
-                            when (val socketIoPacket = decodeSocketIoPacket(json, engineIoPacket)) {
-                                is SocketIoPacket.Connect -> logger.debug { "socket.io connect: ${socketIoPacket.data}" }
-                                is SocketIoPacket.Disconnect -> logger.debug { "socket.io disconnect" }
-                                is SocketIoPacket.Event -> when (val event = decodeCognigyEvent(json, socketIoPacket)) {
-                                    is OutputEvent -> output.send(event)
-                                    else -> {}
-                                }
-                                is SocketIoPacket.Acknowledge -> logger.debug { "socket.io ack: id=${socketIoPacket.acknowledgeId}, data=${socketIoPacket.data}" }
-                                is SocketIoPacket.BinaryEvent -> logger.debug { "socket.io binary event: id=${socketIoPacket.acknowledgeId}, name=${socketIoPacket.name}, data=${socketIoPacket.data}" }
-                                is SocketIoPacket.BinaryAcknowledge -> logger.debug { "socket.io binary ack: id=${socketIoPacket.acknowledgeId}, data=${socketIoPacket.data}" }
-                                is SocketIoPacket.BrokenPacket -> logger.warn(socketIoPacket.t) { "received broken socket.io packet: ${socketIoPacket.reason}, ${socketIoPacket.packet}" }
-                            }
-                        }
-                        is EngineIoPacket.Ping -> sink(EngineIoPacket.Pong)
-                        is EngineIoPacket.Pong -> logger.debug("engine.io pong")
-                        is EngineIoPacket.Upgrade -> logger.debug("engine.io upgrade")
-                        is EngineIoPacket.Noop -> logger.debug("engine.io noop")
-                        is EngineIoPacket.Error -> logger.debug(engineIoPacket.t) { "received broken engine.io packet: ${engineIoPacket.reason}, ${engineIoPacket.data}" }
-                    }
-                }
+                is Frame.Text -> processEngineIoPacket(frame, output, sink)
                 is Frame.Binary -> logger.warn { "websocket binary, unable to process binary data: $frame" }
                 is Frame.Close -> logger.debug { "websocket close: $frame" }
                 is Frame.Ping -> logger.debug { "websocket ping: $frame" }
                 is Frame.Pong -> logger.debug { "websocket pong: $frame" }
             }
+        }
+    }
+
+    private suspend fun processEngineIoPacket(frame: Frame.Text, output: SendChannel<OutputEvent>, sink: suspend (EngineIoPacket) -> Unit) {
+        when (val packet = decodeEngineIoPacket(json, frame)) {
+            is EngineIoPacket.Open -> logger.debug("engine.io open: $packet")
+            is EngineIoPacket.Close -> logger.debug("engine.io close")
+            is EngineIoPacket.TextMessage -> processSocketIoPacket(packet, output)
+            is EngineIoPacket.Ping -> sink(EngineIoPacket.Pong)
+            is EngineIoPacket.Pong -> logger.debug("engine.io pong")
+            is EngineIoPacket.Upgrade -> logger.debug("engine.io upgrade")
+            is EngineIoPacket.Noop -> logger.debug("engine.io noop")
+            is EngineIoPacket.Error -> logger.debug(packet.t) { "received broken engine.io packet: ${packet.reason}, ${packet.data}" }
+        }
+    }
+
+    private suspend fun processSocketIoPacket(engineIoPacket: EngineIoPacket.TextMessage, output: SendChannel<OutputEvent>) {
+        when (val packet = decodeSocketIoPacket(json, engineIoPacket)) {
+            is SocketIoPacket.Connect -> logger.debug { "socket.io connect: ${packet.data}" }
+            is SocketIoPacket.Disconnect -> logger.debug { "socket.io disconnect" }
+            is SocketIoPacket.Event -> when (val event = decodeCognigyEvent(json, packet)) {
+                is OutputEvent -> output.send(event)
+                else -> {}
+            }
+            is SocketIoPacket.Acknowledge -> logger.debug { "socket.io ack: id=${packet.acknowledgeId}, data=${packet.data}" }
+            is SocketIoPacket.BinaryEvent -> logger.debug { "socket.io binary event: id=${packet.acknowledgeId}, name=${packet.name}, data=${packet.data}" }
+            is SocketIoPacket.BinaryAcknowledge -> logger.debug { "socket.io binary ack: id=${packet.acknowledgeId}, data=${packet.data}" }
+            is SocketIoPacket.BrokenPacket -> logger.warn(packet.t) { "received broken socket.io packet: ${packet.reason}, ${packet.packet}" }
         }
     }
 

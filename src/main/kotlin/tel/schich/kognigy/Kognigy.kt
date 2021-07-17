@@ -38,7 +38,7 @@ class Kognigy(
         }
 
         fun encodeInput(event: InputEvent): Frame =
-            encodeSocketIoPacket(json, encodeCognigyFrame(json, CognigyFrame.Event(event)))
+            encodeEngineIoPacket(json, encodeSocketIoPacket(json, encodeCognigyEvent(json, event)))
 
         val output = Channel<OutputEvent>(Channel.UNLIMITED)
 
@@ -64,42 +64,41 @@ class Kognigy(
     }
 
     private suspend fun handle(session: DefaultClientWebSocketSession, output: SendChannel<OutputEvent>) {
-        receiveCognigyEvents(session.incoming, output) { encodeSocketIoPacket(json, it) }
+        receiveCognigyEvents(session.incoming, output) { encodeEngineIoPacket(json, it) }
     }
 
-    private suspend fun receiveCognigyEvents(incoming: ReceiveChannel<Frame>, output: SendChannel<OutputEvent>, sink: suspend (SocketIoPacket) -> Unit) {
+    private suspend fun receiveCognigyEvents(incoming: ReceiveChannel<Frame>, output: SendChannel<OutputEvent>, sink: suspend (EngineIoPacket) -> Unit) {
         for (frame in incoming) {
             when (frame) {
                 is Frame.Text -> {
-                    when (val packet = parseSocketIoPacketFromText(json, frame.readText())) {
-                        is SocketIoPacket.Open -> logger.info("socket.io open: $packet")
-                        is SocketIoPacket.Close -> logger.info("socket.io close")
-                        is SocketIoPacket.TextMessage -> {
-                            when (val cognigyFrame = parseCognigyFrame(json, packet)) {
-                                is CognigyFrame.Noop -> logger.info("cognigy noop")
-                                is CognigyFrame.Event -> when (val event = cognigyFrame.event) {
+                    when (val engineIoPacket = decodeEngineIoPacket(json, frame)) {
+                        is EngineIoPacket.Open -> logger.debug("engine.io open: $engineIoPacket")
+                        is EngineIoPacket.Close -> logger.debug("engine.io close")
+                        is EngineIoPacket.TextMessage -> {
+                            when (val socketIoPacket = decodeSocketIoPacket(json, engineIoPacket)) {
+                                is SocketIoPacket.Connect -> logger.debug { "socket.io connect: ${socketIoPacket.data}" }
+                                is SocketIoPacket.Disconnect -> logger.debug { "socket.io disconnect" }
+                                is SocketIoPacket.Event -> when (val event = decodeCognigyEvent(json, socketIoPacket)) {
                                     is OutputEvent -> output.send(event)
                                     else -> {}
                                 }
-                                is CognigyFrame.BrokenPacket -> {
-                                    logger.warn(cognigyFrame.t) { "Received broken packet: ${cognigyFrame.reason}, ${cognigyFrame.packet}" }
-                                }
+                                is SocketIoPacket.Acknowledge -> logger.debug { "socket.io ack: id=${socketIoPacket.acknowledgeId}, data=${socketIoPacket.data}" }
+                                is SocketIoPacket.BinaryEvent -> logger.debug { "socket.io binary event: id=${socketIoPacket.acknowledgeId}, name=${socketIoPacket.name}, data=${socketIoPacket.data}" }
+                                is SocketIoPacket.BinaryAcknowledge -> logger.debug { "socket.io binary ack: id=${socketIoPacket.acknowledgeId}, data=${socketIoPacket.data}" }
+                                is SocketIoPacket.BrokenPacket -> logger.warn(socketIoPacket.t) { "received broken socket.io packet: ${socketIoPacket.reason}, ${socketIoPacket.packet}" }
                             }
                         }
-                        is SocketIoPacket.Ping -> sink(SocketIoPacket.Pong)
-                        is SocketIoPacket.Pong -> logger.info("socket.io pong")
-                        is SocketIoPacket.Upgrade -> logger.info("socket.io upgrade")
-                        is SocketIoPacket.Noop -> logger.info("socket.io noop")
-                        is SocketIoPacket.Error -> logger.info(packet.t) { "received broken socket.io packet: ${packet.reason}, ${packet.data}" }
+                        is EngineIoPacket.Ping -> sink(EngineIoPacket.Pong)
+                        is EngineIoPacket.Pong -> logger.debug("engine.io pong")
+                        is EngineIoPacket.Upgrade -> logger.debug("engine.io upgrade")
+                        is EngineIoPacket.Noop -> logger.debug("engine.io noop")
+                        is EngineIoPacket.Error -> logger.debug(engineIoPacket.t) { "received broken engine.io packet: ${engineIoPacket.reason}, ${engineIoPacket.data}" }
                     }
                 }
-                is Frame.Binary -> {
-                    logger.warn("unable to process binary data!")
-                }
-                is Frame.Close,
-                is Frame.Ping,
-                is Frame.Pong -> {
-                }
+                is Frame.Binary -> logger.warn { "websocket binary, unable to process binary data: $frame" }
+                is Frame.Close -> logger.debug { "websocket close: $frame" }
+                is Frame.Ping -> logger.debug { "websocket ping: $frame" }
+                is Frame.Pong -> logger.debug { "websocket pong: $frame" }
             }
         }
     }

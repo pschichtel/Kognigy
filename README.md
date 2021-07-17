@@ -1,6 +1,6 @@
 # Kognigy
 
-Simple [Cognigy](cognigy.io) client based on websockets using [ktor](https://ktor.io/), [kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines) and [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization).
+Simple [Cognigy](https://www.cognigy.com/) client based on websockets using [ktor](https://ktor.io/), [kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines) and [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization).
 
 Specifically it is a client for the Socket ([Socket.io](https://socket.io/)) endpoint.
 

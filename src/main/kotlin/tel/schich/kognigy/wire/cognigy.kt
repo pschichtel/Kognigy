@@ -1,14 +1,15 @@
 package tel.schich.kognigy.wire
 
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
+import kotlinx.serialization.*
 import kotlinx.serialization.json.*
+import mu.KotlinLogging
+import tel.schich.kognigy.wire.CognigyFrame.BrokenPacket
+import tel.schich.kognigy.wire.CognigyFrame.Noop
 
 sealed interface CognigyFrame {
     object Noop : CognigyFrame
     data class Event(val event: CognigyEvent) : CognigyFrame
+    data class BrokenPacket(val packet: SocketIoPacket, val reason: String) : CognigyFrame
 }
 
 @Serializable
@@ -79,36 +80,48 @@ sealed interface CognigyEvent {
             const val NAME = "finalPing"
         }
     }
+
+    @Serializable
+    data class UnknownEvent(val data: String) : OutputEvent
 }
 
 
-fun parseCognigyFrame(json: Json, payload: String) = when (payload[0]) {
-    '0' -> CognigyFrame.Noop
+fun parseCognigyFrame(json: Json, packet: SocketIoPacket.TextMessage) = when (val id = packet.data[0]) {
+    '0' -> Noop
     '2' -> {
-        val (name, data) = json.decodeFromString<JsonArray>(payload.substring(1))
+        val (name, data) = json.decodeFromString<JsonArray>(packet.data.substring(1))
         if (name is JsonPrimitive && name.isString) {
             val event = when (name.content) {
                 CognigyEvent.ProcessInput.NAME -> json.decodeFromJsonElement<CognigyEvent.ProcessInput>(data)
                 CognigyEvent.Output.NAME -> json.decodeFromJsonElement<CognigyEvent.Output>(data)
                 CognigyEvent.TypingStatus.NAME -> json.decodeFromJsonElement<CognigyEvent.TypingStatus>(data)
                 CognigyEvent.FinalPing.NAME -> json.decodeFromJsonElement<CognigyEvent.FinalPing>(data)
-                else -> null
+                else -> CognigyEvent.UnknownEvent(packet.data)
             }
             event?.let(CognigyFrame::Event)
-        } else null
+        } else BrokenPacket(packet, "first array entry was not a string: $name")
     }
-    else -> null
+    else -> BrokenPacket(packet, "unknown type: $id")
 }
 
-fun encodeCognigyFrame(json: Json, frame: CognigyFrame) = when (frame) {
-    is CognigyFrame.Noop -> "0"
+private inline fun <reified T: Any> data(json: Json, name: String, event: T) =
+    SocketIoPacket.TextMessage("2${json.encodeToString(listOf(JsonPrimitive(name), json.encodeToJsonElement(event)))}")
+
+fun encodeCognigyFrame(json: Json, frame: CognigyFrame): SocketIoPacket? = when (frame) {
+    is Noop -> SocketIoPacket.TextMessage("0")
     is CognigyFrame.Event -> {
-        val payload = when (val event = frame.event) {
-            is CognigyEvent.ProcessInput -> listOf(JsonPrimitive(CognigyEvent.ProcessInput.NAME), json.encodeToJsonElement(event))
-            is CognigyEvent.Output -> listOf(JsonPrimitive(CognigyEvent.Output.NAME), json.encodeToJsonElement(event))
-            is CognigyEvent.TypingStatus -> listOf(JsonPrimitive(CognigyEvent.TypingStatus.NAME), json.encodeToJsonElement(event))
-            is CognigyEvent.FinalPing -> listOf(JsonPrimitive(CognigyEvent.FinalPing.NAME), json.encodeToJsonElement(event))
+        try {
+            when (val event = frame.event) {
+                is CognigyEvent.ProcessInput -> data(json, CognigyEvent.ProcessInput.NAME, event)
+                is CognigyEvent.Output -> data(json, CognigyEvent.Output.NAME, event)
+                is CognigyEvent.TypingStatus -> data(json, CognigyEvent.TypingStatus.NAME, event)
+                is CognigyEvent.FinalPing -> data(json, CognigyEvent.FinalPing.NAME, event)
+                is CognigyEvent.UnknownEvent -> SocketIoPacket.TextMessage(event.data)
+            }
+        } catch (e: SerializationException) {
+            KotlinLogging.logger {}.error(e) { "Failed to encode a cognigy frame: $frame" }
+            null
         }
-        "2${json.encodeToString(payload)}"
     }
+    is BrokenPacket -> frame.packet
 }

@@ -13,21 +13,28 @@ import tel.schich.kognigy.wire.*
 import tel.schich.kognigy.wire.CognigyEvent.InputEvent
 import tel.schich.kognigy.wire.CognigyEvent.OutputEvent
 import java.net.URI
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
+
+data class Session(
+    val input: SendChannel<InputEvent>,
+    val output: ReceiveChannel<OutputEvent>,
+    private val wsSession: DefaultClientWebSocketSession,
+) {
+    suspend fun close(closeReason: CloseReason) = wsSession.close(closeReason)
+}
 
 class Kognigy(
-    private val uri: URI,
     private val client: HttpClient,
     private val json: Json,
     private val coroutineScope: CoroutineScope,
 ) {
 
-    init {
+    suspend fun connect(uri: URI): Session {
         if (!(uri.scheme.equals("http", true) || uri.scheme.equals("https", true))) {
             throw IllegalArgumentException("Protocol must be http or https")
         }
-    }
-
-    suspend fun connect(): Pair<SendChannel<InputEvent>, ReceiveChannel<OutputEvent>> {
 
         val input = Channel<InputEvent>(Channel.UNLIMITED)
         val output = Channel<OutputEvent>(Channel.UNLIMITED)
@@ -38,62 +45,73 @@ class Kognigy(
 
         val wsUri = URI(scheme, uri.userInfo, uri.host, uri.port, "/socket.io/", "transport=websocket", null).toString()
 
-        coroutineScope.launch {
-            try {
-                client.ws(urlString = wsUri) {
-                    handle(this, input, output)
+        return suspendCoroutine { continuation ->
+            coroutineScope.launch {
+                try {
+                    client.ws(urlString = wsUri) {
+                        continuation.resume(Session(input, output, this))
+                        handle(this, input, output)
+                    }
+                } catch (e: Exception) {
+                    logger.error("WebSocket connection failed!", e)
+                    continuation.resumeWithException(e)
                 }
-            } catch (e: Exception) {
-                logger.error("WebSocket connection failed!", e)
             }
         }
-
-        return Pair(input, output)
     }
 
     private suspend fun handle(session: DefaultClientWebSocketSession, input: ReceiveChannel<InputEvent>, output: SendChannel<OutputEvent>) {
+        suspend fun sink(packet: SocketIoPacket) {
+            session.send(encodeSocketIoPacket(json, packet))
+        }
+
         session.launch {
-            sendCognigyEvents(input, session::send)
+            sendCognigyEvents(input, ::sink)
         }
 
-        receiveCognigyEvents(session.incoming, output)
+        receiveCognigyEvents(session.incoming, output, ::sink)
     }
 
-    private suspend fun sendCognigyEvents(input: ReceiveChannel<InputEvent>, sink: suspend (Frame) -> Unit) {
+    private suspend fun sendCognigyEvents(input: ReceiveChannel<InputEvent>, sink: suspend (SocketIoPacket) -> Unit) {
         for (event in input) {
-            val socketIoFrame = encodeCognigyFrame(json, CognigyFrame.Event(event))
-            sink(Frame.Text(encodeSocketIoFrame(json, SocketIoFrame.Data(socketIoFrame))))
+            val frame = encodeCognigyFrame(json, CognigyFrame.Event(event))
+            if (frame != null) {
+                sink(frame)
+            }
         }
     }
 
-    private suspend fun receiveCognigyEvents(incoming: ReceiveChannel<Frame>, output: SendChannel<OutputEvent>) {
+    private suspend fun receiveCognigyEvents(incoming: ReceiveChannel<Frame>, output: SendChannel<OutputEvent>, sink: suspend (SocketIoPacket) -> Unit) {
         for (frame in incoming) {
             when (frame) {
                 is Frame.Text -> {
-                    when (val socketIoFrame = parseFrame(json, frame.readText())) {
-                        is SocketIoFrame.Open -> logger.info("socket.io open: $socketIoFrame")
-                        is SocketIoFrame.Close -> logger.info("socket.io close")
-                        is SocketIoFrame.Data -> {
-                            when (val cognigyFrame = parseCognigyFrame(json, socketIoFrame.data)) {
+                    when (val packet = parseSocketIoPacketFromText(json, frame.readText())) {
+                        is SocketIoPacket.Open -> logger.info("socket.io open: $packet")
+                        is SocketIoPacket.Close -> logger.info("socket.io close")
+                        is SocketIoPacket.TextMessage -> {
+                            when (val cognigyFrame = parseCognigyFrame(json, packet)) {
                                 is CognigyFrame.Noop -> logger.info("cognigy noop")
                                 is CognigyFrame.Event -> when (val event = cognigyFrame.event) {
                                     is OutputEvent -> output.send(event)
                                     else -> {}
                                 }
-                                null -> {}
+                                is CognigyFrame.BrokenPacket -> {
+                                    logger.warn { "Received broken packet: $cognigyFrame" }
+                                }
                             }
 
                         }
-                        is SocketIoFrame.Ping -> logger.info("socket.io ping")
-                        is SocketIoFrame.Pong -> logger.info("socket.io pong")
-                        is SocketIoFrame.Upgrade -> logger.info("socket.io upgrade")
-                        is SocketIoFrame.Noop -> logger.info("socket.io noop")
-                        null -> {
+                        is SocketIoPacket.Ping -> {
+                            sink(SocketIoPacket.Pong)
                         }
+                        is SocketIoPacket.Pong -> logger.info("socket.io pong")
+                        is SocketIoPacket.Upgrade -> logger.info("socket.io upgrade")
+                        is SocketIoPacket.Noop -> logger.info("socket.io noop")
+                        is SocketIoPacket.Error -> logger.info { "received broken socket.io packet: $packet" }
                     }
                 }
                 is Frame.Binary -> {
-                    logger.info("Unable to process binary data!")
+                    logger.warn("unable to process binary data!")
                 }
                 is Frame.Close,
                 is Frame.Ping,

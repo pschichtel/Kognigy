@@ -96,10 +96,9 @@ class Kognigy(
                                     else -> {}
                                 }
                                 is CognigyFrame.BrokenPacket -> {
-                                    logger.warn { "Received broken packet: $cognigyFrame" }
+                                    logger.warn(cognigyFrame.t) { "Received broken packet: ${cognigyFrame.reason}, ${cognigyFrame.packet}" }
                                 }
                             }
-
                         }
                         is SocketIoPacket.Ping -> {
                             sink(SocketIoPacket.Pong)
@@ -107,7 +106,7 @@ class Kognigy(
                         is SocketIoPacket.Pong -> logger.info("socket.io pong")
                         is SocketIoPacket.Upgrade -> logger.info("socket.io upgrade")
                         is SocketIoPacket.Noop -> logger.info("socket.io noop")
-                        is SocketIoPacket.Error -> logger.info { "received broken socket.io packet: $packet" }
+                        is SocketIoPacket.Error -> logger.info(packet.t) { "received broken socket.io packet: ${packet.reason}, ${packet.data}" }
                     }
                 }
                 is Frame.Binary -> {

@@ -9,7 +9,7 @@ import tel.schich.kognigy.wire.CognigyFrame.Noop
 sealed interface CognigyFrame {
     object Noop : CognigyFrame
     data class Event(val event: CognigyEvent) : CognigyFrame
-    data class BrokenPacket(val packet: SocketIoPacket, val reason: String) : CognigyFrame
+    data class BrokenPacket(val packet: SocketIoPacket, val reason: String, val t: Throwable?) : CognigyFrame
 }
 
 @Serializable
@@ -89,19 +89,23 @@ sealed interface CognigyEvent {
 fun parseCognigyFrame(json: Json, packet: SocketIoPacket.TextMessage) = when (val id = packet.data[0]) {
     '0' -> Noop
     '2' -> {
-        val (name, data) = json.decodeFromString<JsonArray>(packet.data.substring(1))
-        if (name is JsonPrimitive && name.isString) {
-            val event = when (name.content) {
-                CognigyEvent.ProcessInput.NAME -> json.decodeFromJsonElement<CognigyEvent.ProcessInput>(data)
-                CognigyEvent.Output.NAME -> json.decodeFromJsonElement<CognigyEvent.Output>(data)
-                CognigyEvent.TypingStatus.NAME -> json.decodeFromJsonElement<CognigyEvent.TypingStatus>(data)
-                CognigyEvent.FinalPing.NAME -> json.decodeFromJsonElement<CognigyEvent.FinalPing>(data)
-                else -> CognigyEvent.UnknownEvent(packet.data)
-            }
-            event?.let(CognigyFrame::Event)
-        } else BrokenPacket(packet, "first array entry was not a string: $name")
+        try {
+            val (name, data) = json.decodeFromString<JsonArray>(packet.data.substring(1))
+            if (name is JsonPrimitive && name.isString) {
+                val event = when (name.content) {
+                    CognigyEvent.ProcessInput.NAME -> json.decodeFromJsonElement<CognigyEvent.ProcessInput>(data)
+                    CognigyEvent.Output.NAME -> json.decodeFromJsonElement<CognigyEvent.Output>(data)
+                    CognigyEvent.TypingStatus.NAME -> json.decodeFromJsonElement<CognigyEvent.TypingStatus>(data)
+                    CognigyEvent.FinalPing.NAME -> json.decodeFromJsonElement<CognigyEvent.FinalPing>(data)
+                    else -> CognigyEvent.UnknownEvent(packet.data)
+                }
+                CognigyFrame.Event(event)
+            } else BrokenPacket(packet, "first array entry was not a string: $name", null)
+        } catch (e: SerializationException) {
+            BrokenPacket(packet, "json parsing failed", e)
+        }
     }
-    else -> BrokenPacket(packet, "unknown type: $id")
+    else -> BrokenPacket(packet, "unknown type: $id", null)
 }
 
 private inline fun <reified T: Any> data(json: Json, name: String, event: T) =

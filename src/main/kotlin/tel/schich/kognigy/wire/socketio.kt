@@ -18,19 +18,19 @@ sealed interface SocketIoPacket {
     data class BinaryMessage(val data: ByteBuffer) : SocketIoPacket
     object Upgrade : SocketIoPacket
     object Noop : SocketIoPacket
-    data class Error(val data: String, val reason: String) : SocketIoPacket
+    data class Error(val data: String, val reason: String, val t: Throwable?) : SocketIoPacket
 }
 
 fun parseSocketIoPacketFromText(json: Json, message: String): SocketIoPacket {
     if (message.isEmpty()) {
-        return SocketIoPacket.Error(message, "empty message")
+        return SocketIoPacket.Error(message, "empty message", null)
     }
     return when (val type = message[0]) {
         '0' -> {
             try {
                 json.decodeFromString<SocketIoPacket.Open>(message.substring(1))
             } catch (e: SerializationException) {
-                SocketIoPacket.Error(message, "broken json in open packet")
+                SocketIoPacket.Error(message, "broken json in open packet", e)
             }
         }
         '1' -> SocketIoPacket.Close
@@ -39,7 +39,7 @@ fun parseSocketIoPacketFromText(json: Json, message: String): SocketIoPacket {
         '4' -> SocketIoPacket.TextMessage(message.substring(1))
         '5' -> SocketIoPacket.Upgrade
         '6' -> SocketIoPacket.Noop
-        else -> SocketIoPacket.Error(message, "unknown packet type: $type")
+        else -> SocketIoPacket.Error(message, "unknown packet type: $type", null)
     }
 }
 

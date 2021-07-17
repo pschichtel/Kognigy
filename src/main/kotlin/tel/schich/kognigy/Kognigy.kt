@@ -3,12 +3,12 @@ package tel.schich.kognigy
 import io.ktor.client.*
 import io.ktor.client.features.websocket.*
 import io.ktor.http.cio.websocket.*
-import io.ktor.utils.io.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.serialization.json.Json
+import mu.KLoggable
 import tel.schich.kognigy.wire.*
 import tel.schich.kognigy.wire.CognigyEvent.InputEvent
 import tel.schich.kognigy.wire.CognigyEvent.OutputEvent
@@ -44,7 +44,7 @@ class Kognigy(
                     handle(this, input, output)
                 }
             } catch (e: Exception) {
-                e.printStack()
+                logger.error("WebSocket connection failed!", e)
             }
         }
 
@@ -71,11 +71,11 @@ class Kognigy(
             when (frame) {
                 is Frame.Text -> {
                     when (val socketIoFrame = parseFrame(json, frame.readText())) {
-                        is SocketIoFrame.Open -> println("socket.io open: $socketIoFrame")
-                        is SocketIoFrame.Close -> println("socket.io close")
+                        is SocketIoFrame.Open -> logger.info("socket.io open: $socketIoFrame")
+                        is SocketIoFrame.Close -> logger.info("socket.io close")
                         is SocketIoFrame.Data -> {
                             when (val cognigyFrame = parseCognigyFrame(json, socketIoFrame.data)) {
-                                is CognigyFrame.Noop -> println("cognigy noop")
+                                is CognigyFrame.Noop -> logger.info("cognigy noop")
                                 is CognigyFrame.Event -> when (val event = cognigyFrame.event) {
                                     is OutputEvent -> output.send(event)
                                     else -> {}
@@ -84,16 +84,16 @@ class Kognigy(
                             }
 
                         }
-                        is SocketIoFrame.Ping -> println("socket.io ping")
-                        is SocketIoFrame.Pong -> println("socket.io pong")
-                        is SocketIoFrame.Upgrade -> println("socket.io upgrade")
-                        is SocketIoFrame.Noop -> println("socket.io noop")
+                        is SocketIoFrame.Ping -> logger.info("socket.io ping")
+                        is SocketIoFrame.Pong -> logger.info("socket.io pong")
+                        is SocketIoFrame.Upgrade -> logger.info("socket.io upgrade")
+                        is SocketIoFrame.Noop -> logger.info("socket.io noop")
                         null -> {
                         }
                     }
                 }
                 is Frame.Binary -> {
-                    println("Unable to process binary data!")
+                    logger.info("Unable to process binary data!")
                 }
                 is Frame.Close,
                 is Frame.Ping,
@@ -101,5 +101,9 @@ class Kognigy(
                 }
             }
         }
+    }
+
+    private companion object : KLoggable {
+        override val logger = logger()
     }
 }

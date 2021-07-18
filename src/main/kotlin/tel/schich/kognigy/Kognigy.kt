@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import mu.KLoggable
 import tel.schich.kognigy.protocol.*
 import tel.schich.kognigy.protocol.CognigyEvent.InputEvent
@@ -18,11 +19,43 @@ import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 data class Session(
+    val endpointToken: String,
+    val sessionId: String,
+    val userId: String,
+    val channelName: String,
+    val source: String,
+    val passthroughIp: String?,
     val output: Flow<OutputEvent>,
     private val encoder: (InputEvent) -> Frame,
     private val wsSession: DefaultClientWebSocketSession,
 ) {
+    suspend fun sendInput(
+        text: String,
+        data: JsonElement? = null,
+        reloadFlow: Boolean = false,
+        resetFlow: Boolean = false,
+        resetState: Boolean = false,
+        resetContext: Boolean = false,
+    ) {
+        val event = CognigyEvent.ProcessInput(
+            URLToken = endpointToken,
+            userId = userId,
+            sessionId = sessionId,
+            channel = channelName,
+            source = source,
+            passthroughIP = passthroughIp,
+            reloadFlow = reloadFlow,
+            resetFlow = resetFlow,
+            resetState = resetState,
+            resetContext = resetContext,
+            data = data,
+            text = text,
+        )
+        send(event)
+    }
+
     suspend fun send(event: InputEvent) = wsSession.send(encoder(event))
+
     suspend fun close(closeReason: CloseReason) = wsSession.close(closeReason)
 }
 
@@ -32,7 +65,15 @@ class Kognigy(
     private val coroutineScope: CoroutineScope,
 ) {
 
-    suspend fun connect(uri: URI): Session {
+    suspend fun connect(
+        uri: URI,
+        endpointToken: String,
+        sessionId: String,
+        userId: String,
+        channelName: String,
+        source: String,
+        passthroughIp: String? = null
+    ): Session {
         if (!(uri.scheme.equals("http", true) || uri.scheme.equals("https", true))) {
             throw IllegalArgumentException("Protocol must be http or https")
         }
@@ -53,7 +94,18 @@ class Kognigy(
                         val flow = incoming
                             .consumeAsFlow()
                             .mapNotNull { frame -> processWebsocketFrame(frame) { send(encodeEngineIoPacket(json, it)) } }
-                        continuation.resume(Session(flow, ::encodeInput, this))
+                        val session = Session(
+                            endpointToken,
+                            sessionId,
+                            userId,
+                            channelName,
+                            source,
+                            passthroughIp,
+                            flow,
+                            ::encodeInput,
+                            this,
+                        )
+                        continuation.resume(session)
                     }
                 } catch (e: Exception) {
                     logger.error("WebSocket connection failed!", e)

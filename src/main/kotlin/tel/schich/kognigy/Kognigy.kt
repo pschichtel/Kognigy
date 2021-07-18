@@ -4,9 +4,9 @@ import io.ktor.client.*
 import io.ktor.client.features.websocket.*
 import io.ktor.http.cio.websocket.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.serialization.json.Json
 import mu.KLoggable
 import tel.schich.kognigy.protocol.*
@@ -18,7 +18,7 @@ import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 data class Session(
-    val output: ReceiveChannel<OutputEvent>,
+    val output: Flow<OutputEvent>,
     private val encoder: (InputEvent) -> Frame,
     private val wsSession: DefaultClientWebSocketSession,
 ) {
@@ -40,8 +40,6 @@ class Kognigy(
         fun encodeInput(event: InputEvent): Frame =
             encodeEngineIoPacket(json, encodeSocketIoPacket(json, encodeCognigyEvent(json, event)))
 
-        val output = Channel<OutputEvent>(Channel.UNLIMITED)
-
         val scheme =
             if (uri.scheme.equals("http", false)) "ws"
             else "wss"
@@ -52,8 +50,10 @@ class Kognigy(
             coroutineScope.launch {
                 try {
                     client.ws(urlString = wsUri) {
-                        continuation.resume(Session(output, ::encodeInput, this))
-                        handle(this, output)
+                        val flow = incoming
+                            .consumeAsFlow()
+                            .mapNotNull { frame -> processWebsocketFrame(frame) { send(encodeEngineIoPacket(json, it)) } }
+                        continuation.resume(Session(flow, ::encodeInput, this))
                     }
                 } catch (e: Exception) {
                     logger.error("WebSocket connection failed!", e)
@@ -63,41 +63,37 @@ class Kognigy(
         }
     }
 
-    private suspend fun handle(session: DefaultClientWebSocketSession, output: SendChannel<OutputEvent>) {
-        for (frame in session.incoming) {
-            processWebsocketFrame(frame, output) { encodeEngineIoPacket(json, it) }
-        }
-    }
-
-    private suspend fun processWebsocketFrame(frame: Frame, output: SendChannel<OutputEvent>, sink: suspend (EngineIoPacket) -> Unit) {
+    private suspend fun processWebsocketFrame(frame: Frame, sink: suspend (EngineIoPacket) -> Unit): OutputEvent? {
         when (frame) {
-            is Frame.Text -> processEngineIoPacket(frame, output, sink)
+            is Frame.Text -> return processEngineIoPacket(frame, sink)
             is Frame.Binary -> logger.warn { "websocket binary, unable to process binary data: $frame" }
             is Frame.Close -> logger.debug { "websocket close: $frame" }
             is Frame.Ping -> logger.debug { "websocket ping: $frame" }
             is Frame.Pong -> logger.debug { "websocket pong: $frame" }
         }
+        return null
     }
 
-    private suspend fun processEngineIoPacket(frame: Frame.Text, output: SendChannel<OutputEvent>, sink: suspend (EngineIoPacket) -> Unit) {
+    private suspend fun processEngineIoPacket(frame: Frame.Text, sink: suspend (EngineIoPacket) -> Unit): OutputEvent? {
         when (val packet = decodeEngineIoPacket(json, frame)) {
             is EngineIoPacket.Open -> logger.debug("engine.io open: $packet")
             is EngineIoPacket.Close -> logger.debug("engine.io close")
-            is EngineIoPacket.TextMessage -> processSocketIoPacket(packet, output)
+            is EngineIoPacket.TextMessage -> return processSocketIoPacket(packet)
             is EngineIoPacket.Ping -> sink(EngineIoPacket.Pong)
             is EngineIoPacket.Pong -> logger.debug("engine.io pong")
             is EngineIoPacket.Upgrade -> logger.debug("engine.io upgrade")
             is EngineIoPacket.Noop -> logger.debug("engine.io noop")
             is EngineIoPacket.Error -> logger.debug(packet.t) { "received broken engine.io packet: ${packet.reason}, ${packet.data}" }
         }
+        return null
     }
 
-    private suspend fun processSocketIoPacket(engineIoPacket: EngineIoPacket.TextMessage, output: SendChannel<OutputEvent>) {
+    private fun processSocketIoPacket(engineIoPacket: EngineIoPacket.TextMessage): OutputEvent? {
         when (val packet = decodeSocketIoPacket(json, engineIoPacket)) {
             is SocketIoPacket.Connect -> logger.debug { "socket.io connect: ${packet.data}" }
             is SocketIoPacket.Disconnect -> logger.debug { "socket.io disconnect" }
             is SocketIoPacket.Event -> when (val event = decodeCognigyEvent(json, packet)) {
-                is OutputEvent -> output.send(event)
+                is OutputEvent -> return event
                 else -> {}
             }
             is SocketIoPacket.Acknowledge -> logger.debug { "socket.io ack: id=${packet.acknowledgeId}, data=${packet.data}" }
@@ -105,6 +101,7 @@ class Kognigy(
             is SocketIoPacket.BinaryAcknowledge -> logger.debug { "socket.io binary ack: id=${packet.acknowledgeId}, data=${packet.data}" }
             is SocketIoPacket.BrokenPacket -> logger.warn(packet.t) { "received broken socket.io packet: ${packet.reason}, ${packet.packet}" }
         }
+        return null
     }
 
     private companion object : KLoggable {

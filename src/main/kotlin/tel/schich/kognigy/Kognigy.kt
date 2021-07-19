@@ -2,6 +2,9 @@ package tel.schich.kognigy
 
 import io.ktor.client.*
 import io.ktor.client.features.websocket.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
 import io.ktor.http.cio.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
@@ -14,9 +17,6 @@ import tel.schich.kognigy.protocol.*
 import tel.schich.kognigy.protocol.CognigyEvent.InputEvent
 import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
 import java.net.URI
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 data class Session(
     val endpointToken: String,
@@ -56,13 +56,15 @@ data class Session(
 
     suspend fun send(event: InputEvent) = wsSession.send(encoder(event))
 
-    suspend fun close(closeReason: CloseReason) = wsSession.close(closeReason)
+    suspend fun close(closeReason: CloseReason = CloseReason(CloseReason.Codes.NORMAL, "")) {
+        wsSession.close(closeReason)
+        wsSession.cancel()
+    }
 }
 
 class Kognigy(
     private val client: HttpClient,
     private val json: Json,
-    private val coroutineScope: CoroutineScope,
 ) {
 
     suspend fun connect(
@@ -81,38 +83,37 @@ class Kognigy(
         fun encodeInput(event: InputEvent): Frame =
             encodeEngineIoPacket(json, encodeSocketIoPacket(json, encodeCognigyEvent(json, event)))
 
-        val scheme =
-            if (uri.scheme.equals("http", false)) "ws"
-            else "wss"
+        val proto =
+            if (uri.scheme.equals("http", false)) URLProtocol.WS
+            else URLProtocol.WSS
 
-        val wsUri = URI(scheme, uri.userInfo, uri.host, uri.port, "/socket.io/", "transport=websocket", null).toString()
-
-        return suspendCoroutine { continuation ->
-            coroutineScope.launch {
-                try {
-                    client.ws(urlString = wsUri) {
-                        val flow = incoming
-                            .consumeAsFlow()
-                            .mapNotNull { frame -> processWebsocketFrame(frame) { send(encodeEngineIoPacket(json, it)) } }
-                        val session = Session(
-                            endpointToken,
-                            sessionId,
-                            userId,
-                            channelName,
-                            source,
-                            passthroughIp,
-                            flow,
-                            ::encodeInput,
-                            this,
-                        )
-                        continuation.resume(session)
-                    }
-                } catch (e: Exception) {
-                    logger.error("WebSocket connection failed!", e)
-                    continuation.resumeWithException(e)
-                }
+        // TODO userInfo ???
+        val httpRequest = client.request<HttpStatement> {
+            method = HttpMethod.Get
+            url {
+                protocol = proto
+                host = uri.host
+                port = if (uri.port <= 0) proto.defaultPort else uri.port
+                encodedPath = "/socket.io/"
+                parameter("transport", "websocket")
             }
         }
+        val wsSession = httpRequest.receive<DefaultClientWebSocketSession>()
+        val flow = wsSession.incoming
+            .consumeAsFlow()
+            .mapNotNull { frame -> processWebsocketFrame(frame) { wsSession.send(encodeEngineIoPacket(json, it)) } }
+
+        return Session(
+            endpointToken,
+            sessionId,
+            userId,
+            channelName,
+            source,
+            passthroughIp,
+            flow,
+            ::encodeInput,
+            wsSession,
+        )
     }
 
     private suspend fun processWebsocketFrame(frame: Frame, sink: suspend (EngineIoPacket) -> Unit): OutputEvent? {

@@ -13,9 +13,11 @@ import kotlinx.serialization.json.*
 import mu.KLoggable
 import tel.schich.kognigy.protocol.*
 import kotlin.random.Random
+import kotlin.test.Ignore
 
 class KognigyTest {
 
+    @Ignore
     @Test
     fun test() {
         URLBuilder()

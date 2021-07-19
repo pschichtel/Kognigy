@@ -1,6 +1,9 @@
 plugins {
+    `java-library`
     kotlin("jvm") version "1.5.21"
     kotlin("plugin.serialization") version "1.5.21"
+    `maven-publish`
+    id("io.github.gradle-nexus.publish-plugin") version "1.1.0"
 }
 
 group = "tel.schich.kognigy"
@@ -29,3 +32,43 @@ dependencies {
 repositories {
     mavenCentral()
 }
+
+
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            from(components["java"])
+            pom {
+                name.set("Kognigy")
+                description.set("A simple socket.io client for Cognigy.")
+                url.set("https://github.com/pschichtel/kognigy")
+                licenses {
+                    license {
+                        name.set("MIT")
+                        url.set("https://opensource.org/licenses/MIT")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("pschichtel")
+                        name.set("Phillip Schichtel")
+                        email.set("phillip@schich.tel")
+                    }
+                }
+                scm {
+                    url.set("https://github.com/pschichtel/kognigy")
+                    connection.set("scm:git:https://github.com/pschichtel/kognigy")
+                    developerConnection.set("scm:git:git@github.com:pschichtel/kognigy")
+                }
+            }
+        }
+    }
+}
+
+nexusPublishing {
+    repositories {
+        sonatype()
+    }
+}
+

@@ -16,7 +16,6 @@ import mu.KLoggable
 import tel.schich.kognigy.protocol.*
 import tel.schich.kognigy.protocol.CognigyEvent.InputEvent
 import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
-import java.net.URI
 
 data class Session(
     val endpointToken: String,
@@ -68,7 +67,7 @@ class Kognigy(
 ) {
 
     suspend fun connect(
-        uri: URI,
+        uri: Url,
         endpointToken: String,
         sessionId: String,
         userId: String,
@@ -76,24 +75,20 @@ class Kognigy(
         source: String,
         passthroughIp: String? = null
     ): Session {
-        if (!(uri.scheme.equals("http", true) || uri.scheme.equals("https", true))) {
+        if (!(uri.protocol == URLProtocol.HTTP || uri.protocol == URLProtocol.HTTPS)) {
             throw IllegalArgumentException("Protocol must be http or https")
         }
 
         fun encodeInput(event: InputEvent): Frame =
             encodeEngineIoPacket(json, encodeSocketIoPacket(json, encodeCognigyEvent(json, event)))
 
-        val proto =
-            if (uri.scheme.equals("http", false)) URLProtocol.WS
-            else URLProtocol.WSS
-
-        // TODO userInfo ???
-        val httpRequest = client.request<HttpStatement> {
+        val httpRequest = client.request<HttpStatement>(uri) {
             method = HttpMethod.Get
             url {
-                protocol = proto
-                host = uri.host
-                port = if (uri.port <= 0) proto.defaultPort else uri.port
+                protocol =
+                    if (uri.protocol.isSecure()) URLProtocol.WSS
+                    else URLProtocol.WS
+                port = if (uri.port <= 0) protocol.defaultPort else uri.port
                 encodedPath = "/socket.io/"
                 parameter("transport", "websocket")
             }

@@ -2,6 +2,7 @@ package tel.schich.kognigy
 
 import io.ktor.client.*
 import io.ktor.client.features.websocket.*
+import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.launchIn
@@ -11,13 +12,13 @@ import kotlin.test.Test
 import kotlinx.serialization.json.*
 import mu.KLoggable
 import tel.schich.kognigy.protocol.*
-import java.net.URI
 import kotlin.random.Random
 
 class KognigyTest {
 
     @Test
     fun test() {
+        URLBuilder()
         runBlocking {
             val client = HttpClient {
                 install(WebSockets)
@@ -25,7 +26,7 @@ class KognigyTest {
 
             val json = Json { encodeDefaults = true }
             val token = System.getenv("ENDPOINT_TOKEN")
-            val uri = URI(System.getenv("ENDPOINT_URL"))
+            val uri = Url(System.getenv("ENDPOINT_URL"))
 
             val kognigy = Kognigy(client, json)
 

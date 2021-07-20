@@ -1,6 +1,7 @@
 package tel.schich.kognigy
 
 import io.ktor.client.*
+import io.ktor.client.features.*
 import io.ktor.client.features.websocket.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -152,7 +153,28 @@ class Kognigy(
         return null
     }
 
-    private companion object : KLoggable {
+    companion object : KLoggable {
         override val logger = logger()
+
+        fun simple(
+            connectTimeoutMillis: Long = 2000,
+            requestTimeoutMillis: Long = 2000,
+            socketTimeoutMillis: Long = 2000,
+        ): Kognigy {
+            val client = HttpClient {
+                install(WebSockets)
+                install(HttpTimeout) {
+                    this.connectTimeoutMillis = connectTimeoutMillis
+                    //this.requestTimeoutMillis = requestTimeoutMillis
+                    //this.socketTimeoutMillis = socketTimeoutMillis
+                }
+            }
+
+            val json = Json {
+                encodeDefaults = true
+            }
+
+            return Kognigy(client, json)
+        }
     }
 }

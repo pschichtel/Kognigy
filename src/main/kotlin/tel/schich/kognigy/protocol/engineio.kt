@@ -14,14 +14,14 @@ sealed interface EngineIoPacket {
     object Close : EngineIoPacket
     object Ping : EngineIoPacket
     object Pong : EngineIoPacket
-    data class TextMessage(val message: String) : EngineIoPacket
-    data class BinaryMessage(val data: ByteBuffer) : EngineIoPacket
+    data class TextMessage(val timestamp: Long, val message: String) : EngineIoPacket
+    data class BinaryMessage(val timestamp: Long, val data: ByteBuffer) : EngineIoPacket
     object Upgrade : EngineIoPacket
     object Noop : EngineIoPacket
     data class Error(val data: String, val reason: String, val t: Throwable?) : EngineIoPacket
 }
 
-fun decodeEngineIoPacket(json: Json, frame: Frame.Text): EngineIoPacket {
+fun decodeEngineIoPacket(json: Json, frame: Frame.Text, timestamp: Long): EngineIoPacket {
     val message = frame.readText()
     if (message.isEmpty()) {
         return EngineIoPacket.Error(message, "empty message", null)
@@ -37,7 +37,7 @@ fun decodeEngineIoPacket(json: Json, frame: Frame.Text): EngineIoPacket {
         '1' -> EngineIoPacket.Close
         '2' -> EngineIoPacket.Ping
         '3' -> EngineIoPacket.Pong
-        '4' -> EngineIoPacket.TextMessage(message.substring(1))
+        '4' -> EngineIoPacket.TextMessage(timestamp, message.substring(1))
         '5' -> EngineIoPacket.Upgrade
         '6' -> EngineIoPacket.Noop
         else -> EngineIoPacket.Error(message, "unknown packet type: $type", null)

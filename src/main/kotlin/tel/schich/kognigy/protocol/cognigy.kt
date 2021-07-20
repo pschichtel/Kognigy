@@ -10,7 +10,6 @@ data class OutputData(val text: String, val data: JsonElement, val traceId: Stri
 data class ErrorData(val error: JsonElement)
 
 sealed interface CognigyEvent {
-
     sealed interface InputEvent : CognigyEvent
     sealed interface OutputEvent : CognigyEvent
 
@@ -124,15 +123,20 @@ fun decodeCognigyEvent(json: Json, packet: SocketIoPacket.Event): CognigyEvent =
  * Encodes the data into a socket.io message packet. In theory a SerializationException could be thrown,
  * it is very unlikely unless the entire project is misconfigured, since only known closed types are being encoded here.
  */
-private inline fun <reified T: Any> data(json: Json, name: String, event: T) =
-    SocketIoPacket.Event(null, null, name, listOf(json.encodeToJsonElement(event)))
+private inline fun <reified T: Any> data(json: Json, name: String, event: T, timestamp: Long) = SocketIoPacket.Event(
+    timestamp,
+    null,
+    null,
+    name,
+    listOf(json.encodeToJsonElement(event)),
+)
 
-fun encodeCognigyEvent(json: Json, event: CognigyEvent): SocketIoPacket = when (event) {
-    is CognigyEvent.ProcessInput -> data(json, CognigyEvent.ProcessInput.NAME, event)
-    is CognigyEvent.Output -> data(json, CognigyEvent.Output.NAME, event)
-    is CognigyEvent.TypingStatus -> data(json, CognigyEvent.TypingStatus.NAME, event)
-    is CognigyEvent.FinalPing -> data(json, CognigyEvent.FinalPing.NAME, event)
-    is CognigyEvent.TriggeredElement -> data(json, CognigyEvent.TriggeredElement.NAME, event)
-    is CognigyEvent.Exception -> data(json, CognigyEvent.Exception.NAME, event)
+fun encodeCognigyEvent(json: Json, event: CognigyEvent, timestamp: Long): SocketIoPacket = when (event) {
+    is CognigyEvent.ProcessInput -> data(json, CognigyEvent.ProcessInput.NAME, event, timestamp)
+    is CognigyEvent.Output -> data(json, CognigyEvent.Output.NAME, event, timestamp)
+    is CognigyEvent.TypingStatus -> data(json, CognigyEvent.TypingStatus.NAME, event, timestamp)
+    is CognigyEvent.FinalPing -> data(json, CognigyEvent.FinalPing.NAME, event, timestamp)
+    is CognigyEvent.TriggeredElement -> data(json, CognigyEvent.TriggeredElement.NAME, event, timestamp)
+    is CognigyEvent.Exception -> data(json, CognigyEvent.Exception.NAME, event, timestamp)
     is CognigyEvent.BrokenEvent -> event.data
 }

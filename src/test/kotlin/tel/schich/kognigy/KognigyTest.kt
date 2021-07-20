@@ -28,10 +28,10 @@ class KognigyTest {
             session.sendInput("Start!")
 
             session.output
-                .filterNot { it is CognigyEvent.FinalPing }
+                .filterNot { (event) -> event !is CognigyEvent.Output }
                 .take(5)
-                .onEach { event ->
-                    logger.info("$event")
+                .onEach { (event, timestamp) ->
+                    logger.info("$timestamp -> $event")
                     delay(5000)
                     session.sendInput("Some text! ${Random.nextInt()}")
                 }

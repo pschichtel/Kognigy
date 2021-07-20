@@ -14,14 +14,14 @@ val coroutinesVersion = "1.5.1"
 val serializationVersion = "1.2.2"
 
 dependencies {
-    implementation(platform("org.jetbrains.kotlin:kotlin-bom"))
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
-    implementation("io.ktor:ktor-client-core:$ktorVersion")
-    implementation("io.ktor:ktor-client-cio:$ktorVersion")
-    implementation("io.ktor:ktor-client-websockets:$ktorVersion")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
-    implementation("io.github.microutils:kotlin-logging-jvm:2.0.10")
+    api(platform("org.jetbrains.kotlin:kotlin-bom"))
+    api("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    api("io.ktor:ktor-client-core:$ktorVersion")
+    api("io.ktor:ktor-client-cio:$ktorVersion")
+    api("io.ktor:ktor-client-websockets:$ktorVersion")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
+    api("io.github.microutils:kotlin-logging-jvm:2.0.10")
 
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
     testImplementation("org.jetbrains.kotlin:kotlin-test")

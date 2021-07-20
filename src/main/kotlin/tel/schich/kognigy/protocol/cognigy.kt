@@ -41,7 +41,7 @@ sealed interface CognigyEvent {
         data class Message(val data: OutputData) : Output()
         @Serializable
         @SerialName("error")
-        data class Error(val data: ErrorData)
+        data class Error(val data: ErrorData) : Output()
 
         companion object {
             const val NAME = "output"

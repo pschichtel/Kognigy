@@ -34,13 +34,13 @@ repositories {
     mavenCentral()
 }
 
-val sourcesJar by tasks.registering(Jar::class) {
+val sourcesJar by tasks.creating(Jar::class) {
     dependsOn(JavaPlugin.CLASSES_TASK_NAME)
     archiveClassifier.set("sources")
     from(sourceSets["main"].allSource)
 }
 
-val javadocJar by tasks.registering(Jar::class) {
+val javadocJar by tasks.creating(Jar::class) {
     dependsOn(tasks.dokkaJavadoc)
     archiveClassifier.set("javadoc")
     from(tasks.dokkaJavadoc)
@@ -48,7 +48,7 @@ val javadocJar by tasks.registering(Jar::class) {
 
 publishing {
     publications {
-        create<MavenPublication>("kotlin") {
+        create<MavenPublication>("mavenJava") {
             from(components["java"])
             artifact(sourcesJar)
             artifact(javadocJar)
@@ -81,7 +81,7 @@ publishing {
 
 signing {
     useGpgCmd()
-    sign(publishing.publications["kotlin"])
+    sign(publishing.publications["mavenJava"])
 }
 
 nexusPublishing {

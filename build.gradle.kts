@@ -1,8 +1,9 @@
 plugins {
-    `java-library`
+    signing
+    `maven-publish`
     kotlin("jvm") version "1.5.21"
     kotlin("plugin.serialization") version "1.5.21"
-    `maven-publish`
+    id("org.jetbrains.dokka") version "1.5.0"
     id("io.github.gradle-nexus.publish-plugin") version "1.1.0"
 }
 
@@ -33,12 +34,24 @@ repositories {
     mavenCentral()
 }
 
+val sourcesJar by tasks.registering(Jar::class) {
+    dependsOn(JavaPlugin.CLASSES_TASK_NAME)
+    archiveClassifier.set("sources")
+    from(sourceSets["main"].allSource)
+}
 
+val javadocJar by tasks.registering(Jar::class) {
+    dependsOn(tasks.dokkaJavadoc)
+    archiveClassifier.set("javadoc")
+    from(tasks.dokkaJavadoc)
+}
 
 publishing {
     publications {
-        create<MavenPublication>("mavenJava") {
+        create<MavenPublication>("kotlin") {
             from(components["java"])
+            artifact(sourcesJar)
+            artifact(javadocJar)
             pom {
                 name.set("Kognigy")
                 description.set("A simple socket.io client for Cognigy.")
@@ -64,6 +77,11 @@ publishing {
             }
         }
     }
+}
+
+signing {
+    useGpgCmd()
+    sign(publishing.publications["kotlin"])
 }
 
 nexusPublishing {

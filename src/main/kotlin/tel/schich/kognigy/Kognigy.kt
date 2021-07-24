@@ -158,7 +158,9 @@ class Kognigy(
 
         fun simple(
             connectTimeoutMillis: Long = 2000,
+            @Suppress("UNUSED_PARAMETER")
             requestTimeoutMillis: Long = 2000,
+            @Suppress("UNUSED_PARAMETER")
             socketTimeoutMillis: Long = 2000,
         ): Kognigy {
             val client = HttpClient {

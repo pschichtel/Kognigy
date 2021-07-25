@@ -33,8 +33,6 @@ import tel.schich.kognigy.protocol.CognigyEvent.InputEvent
 import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
 import tel.schich.kognigy.protocol.EngineIoPacket
 import tel.schich.kognigy.protocol.SocketIoPacket
-import tel.schich.kognigy.protocol.decodeCognigyEvent
-import tel.schich.kognigy.protocol.encodeCognigyEvent
 
 @Serializable
 data class KognigySession(
@@ -105,7 +103,7 @@ class Kognigy(
         }
 
         fun encodeInput(event: InputEvent): Frame =
-            EngineIoPacket.encode(json, SocketIoPacket.encode(json, encodeCognigyEvent(json, event)))
+            EngineIoPacket.encode(json, SocketIoPacket.encode(json, CognigyEvent.encode(json, event)))
 
         val httpRequest = client.request<HttpStatement>(url) {
             method = HttpMethod.Get
@@ -155,7 +153,7 @@ class Kognigy(
         when (val packet = SocketIoPacket.decode(json, engineIoPacket)) {
             is SocketIoPacket.Connect -> logger.debug { "socket.io connect: ${packet.data}" }
             is SocketIoPacket.Disconnect -> logger.debug { "socket.io disconnect" }
-            is SocketIoPacket.Event -> when (val event = decodeCognigyEvent(json, packet)) {
+            is SocketIoPacket.Event -> when (val event = CognigyEvent.decode(json, packet)) {
                 is OutputEvent -> return event
                 else -> {}
             }

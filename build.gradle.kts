@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "tel.schich.kognigy"
-version = "1.0.0"
+version = "1.0.1-SNAPSHOT"
 
 dependencies {
     val ktorVersion = "1.6.1"

@@ -49,7 +49,7 @@ class KognigyTest {
                 .onEach { event ->
                     logger.info("$event")
                     if (counter.incrementAndGet() < 5) {
-                        delay(2500)
+                        delay(500)
                         connection.sendInput("Some text! ${Random.nextInt()}")
                     }
                 }

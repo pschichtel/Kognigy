@@ -202,7 +202,6 @@ class Kognigy(
             connectTimeoutMillis: Long = 2000,
             @Suppress("UNUSED_PARAMETER")
             requestTimeoutMillis: Long = 2000,
-            @Suppress("UNUSED_PARAMETER")
             socketTimeoutMillis: Long = 2000,
         ): Kognigy {
             val client = HttpClient {
@@ -211,7 +210,7 @@ class Kognigy(
                     this.connectTimeoutMillis = connectTimeoutMillis
                     // TODO upstream bug: https://youtrack.jetbrains.com/issue/KTOR-2946
                     // this.requestTimeoutMillis = requestTimeoutMillis
-                    // this.socketTimeoutMillis = socketTimeoutMillis
+                    this.socketTimeoutMillis = socketTimeoutMillis
                 }
             }
 

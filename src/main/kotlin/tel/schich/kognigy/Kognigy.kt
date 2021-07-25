@@ -58,6 +58,7 @@ data class KognigyConnection(
     private val encoder: (InputEvent) -> Frame,
     private val wsSession: DefaultClientWebSocketSession,
 ) {
+    @Suppress("LongParameterList")
     suspend fun sendInput(
         text: String,
         data: JsonElement? = null,

@@ -1,22 +1,24 @@
 plugins {
     signing
+    java
     `maven-publish`
-    kotlin("jvm") version "1.5.21"
-    kotlin("plugin.serialization") version "1.5.21"
-    id("org.jetbrains.dokka") version "1.5.0"
-    id("io.github.gradle-nexus.publish-plugin") version "1.1.0"
+    kotlin("jvm")
+    kotlin("plugin.serialization")
+    id("org.jetbrains.dokka")
+    id("io.github.gradle-nexus.publish-plugin")
 }
 
 group = "tel.schich.kognigy"
 version = "1.0-SNAPSHOT"
 
-val ktorVersion = "1.6.1"
-val coroutinesVersion = "1.5.1"
-val serializationVersion = "1.2.2"
-
 dependencies {
+    val ktorVersion = "1.6.1"
+    val coroutinesVersion = "1.5.1"
+    val serializationVersion = "1.2.2"
+    val junitVersion = "5.3.1"
+
     api(platform("org.jetbrains.kotlin:kotlin-bom"))
-    api("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    api(kotlin("stdlib-jdk8"))
     api("io.ktor:ktor-client-core:$ktorVersion")
     api("io.ktor:ktor-client-cio:$ktorVersion")
     api("io.ktor:ktor-client-websockets:$ktorVersion")
@@ -24,10 +26,15 @@ dependencies {
     api("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
     api("io.github.microutils:kotlin-logging-jvm:2.0.10")
 
+    testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
-    testImplementation("org.jetbrains.kotlin:kotlin-test")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
+    testImplementation(kotlin("test-junit5"))
     testImplementation("org.slf4j:slf4j-simple:1.7.9")
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }
 
 repositories {

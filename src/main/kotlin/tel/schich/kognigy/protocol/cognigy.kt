@@ -16,12 +16,14 @@ sealed interface CognigyEvent {
 
     @Serializable
     data class ProcessInput(
-        val URLToken: String,
+        @SerialName("URLToken")
+        val urlToken: String,
         val userId: String,
         val sessionId: String,
         val channel: String,
         val source: String,
-        val passthroughIP: String?,
+        @SerialName("passthroughIP")
+        val passthroughIp: String?,
         val reloadFlow: Boolean,
         val resetFlow: Boolean,
         val resetState: Boolean,

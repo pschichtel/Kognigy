@@ -18,7 +18,7 @@ import tel.schich.kognigy.protocol.*
 import tel.schich.kognigy.protocol.CognigyEvent.InputEvent
 import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
 
-data class Session(
+data class KognigySession(
     val endpointToken: String,
     val sessionId: String,
     val userId: String,
@@ -38,12 +38,12 @@ data class Session(
         resetContext: Boolean = false,
     ) {
         val event = CognigyEvent.ProcessInput(
-            URLToken = endpointToken,
+            urlToken = endpointToken,
             userId = userId,
             sessionId = sessionId,
             channel = channelName,
             source = source,
-            passthroughIP = passthroughIp,
+            passthroughIp = passthroughIp,
             reloadFlow = reloadFlow,
             resetFlow = resetFlow,
             resetState = resetState,
@@ -75,7 +75,7 @@ class Kognigy(
         channelName: String,
         source: String,
         passthroughIp: String? = null
-    ): Session {
+    ): KognigySession {
         if (!(uri.protocol == URLProtocol.HTTP || uri.protocol == URLProtocol.HTTPS)) {
             throw IllegalArgumentException("Protocol must be http or https")
         }
@@ -99,7 +99,7 @@ class Kognigy(
             .consumeAsFlow()
             .mapNotNull { frame -> processWebsocketFrame(frame) { wsSession.send(encodeEngineIoPacket(json, it)) } }
 
-        return Session(
+        return KognigySession(
             endpointToken,
             sessionId,
             userId,

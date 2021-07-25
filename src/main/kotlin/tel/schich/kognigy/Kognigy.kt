@@ -207,6 +207,7 @@ class Kognigy(
                 install(WebSockets)
                 install(HttpTimeout) {
                     this.connectTimeoutMillis = connectTimeoutMillis
+                    // TODO upstream bug: https://youtrack.jetbrains.com/issue/KTOR-2946
                     // this.requestTimeoutMillis = requestTimeoutMillis
                     // this.socketTimeoutMillis = socketTimeoutMillis
                 }

@@ -24,8 +24,11 @@ sealed interface CognigyEvent {
 
     @Serializable
     data class ErrorData(
-        val error: JsonElement?,
-    )
+        val error: Content?,
+    ) {
+        @Serializable
+        data class Content(val code: Int, val message: String?)
+    }
 
     @Serializable
     data class ProcessInput(

@@ -6,6 +6,8 @@ import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocketSession
 import io.ktor.client.request.parameter
+import io.ktor.client.request.request
+import io.ktor.client.statement.HttpStatement
 import io.ktor.http.HttpMethod
 import io.ktor.http.URLProtocol
 import io.ktor.http.Url
@@ -111,7 +113,8 @@ class Kognigy(
                 protocol =
                     if (url.protocol.isSecure()) URLProtocol.WSS
                     else URLProtocol.WS
-                port = if (url.port <= 0) protocol.defaultPort else url.port
+                host = url.host
+                port = url.port
                 encodedPath = "/socket.io/"
                 parameter("transport", "websocket")
             }

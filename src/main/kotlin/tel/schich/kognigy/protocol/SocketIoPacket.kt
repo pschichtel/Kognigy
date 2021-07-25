@@ -14,6 +14,9 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import java.nio.ByteBuffer
 
+/**
+ * Based on: [github.com/socketio/socket.io-protocol](https://github.com/socketio/socket.io-protocol)
+ */
 sealed interface SocketIoPacket {
 
     sealed interface Namespaced {

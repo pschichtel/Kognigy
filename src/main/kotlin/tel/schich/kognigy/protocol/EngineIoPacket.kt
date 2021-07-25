@@ -9,6 +9,9 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.nio.ByteBuffer
 
+/**
+ * Based on: [github.com/socketio/engine.io-protocol](https://github.com/socketio/engine.io-protocol)
+ */
 sealed interface EngineIoPacket {
     @Serializable
     data class Open(

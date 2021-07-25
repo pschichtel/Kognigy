@@ -1,22 +1,37 @@
 package tel.schich.kognigy
 
-import io.ktor.client.*
-import io.ktor.client.features.*
-import io.ktor.client.features.websocket.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import io.ktor.http.cio.websocket.*
-import kotlinx.coroutines.*
+import io.ktor.client.HttpClient
+import io.ktor.client.features.HttpTimeout
+import io.ktor.client.features.websocket.DefaultClientWebSocketSession
+import io.ktor.client.features.websocket.WebSockets
+import io.ktor.client.request.parameter
+import io.ktor.client.request.request
+import io.ktor.client.statement.HttpStatement
+import io.ktor.http.HttpMethod
+import io.ktor.http.URLProtocol
+import io.ktor.http.Url
+import io.ktor.http.cio.websocket.CloseReason
+import io.ktor.http.cio.websocket.Frame
+import io.ktor.http.cio.websocket.close
+import io.ktor.http.isSecure
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import mu.KLoggable
-import tel.schich.kognigy.protocol.*
+import tel.schich.kognigy.protocol.CognigyEvent
 import tel.schich.kognigy.protocol.CognigyEvent.InputEvent
 import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
+import tel.schich.kognigy.protocol.EngineIoPacket
+import tel.schich.kognigy.protocol.SocketIoPacket
+import tel.schich.kognigy.protocol.decodeCognigyEvent
+import tel.schich.kognigy.protocol.decodeEngineIoPacket
+import tel.schich.kognigy.protocol.decodeSocketIoPacket
+import tel.schich.kognigy.protocol.encodeCognigyEvent
+import tel.schich.kognigy.protocol.encodeEngineIoPacket
+import tel.schich.kognigy.protocol.encodeSocketIoPacket
 
 data class KognigySession(
     val endpointToken: String,
@@ -167,8 +182,8 @@ class Kognigy(
                 install(WebSockets)
                 install(HttpTimeout) {
                     this.connectTimeoutMillis = connectTimeoutMillis
-                    //this.requestTimeoutMillis = requestTimeoutMillis
-                    //this.socketTimeoutMillis = socketTimeoutMillis
+                    // this.requestTimeoutMillis = requestTimeoutMillis
+                    // this.socketTimeoutMillis = socketTimeoutMillis
                 }
             }
 

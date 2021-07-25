@@ -1,18 +1,20 @@
 package tel.schich.kognigy
 
-import io.ktor.http.*
-import kotlinx.coroutines.*
+import io.ktor.http.URLBuilder
+import io.ktor.http.Url
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.take
-import kotlin.test.Test
+import kotlinx.coroutines.runBlocking
 import mu.KLoggable
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariables
-import tel.schich.kognigy.protocol.*
+import tel.schich.kognigy.protocol.CognigyEvent
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
+import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class KognigyTest {
@@ -58,5 +60,4 @@ class KognigyTest {
         const val ENDPOINT_URL_ENV = "ENDPOINT_URL"
         const val ENDPOINT_TOKEN_ENV = "ENDPOINT_TOKEN"
     }
-
 }

@@ -1,7 +1,12 @@
 package tel.schich.kognigy.protocol
 
-import kotlinx.serialization.*
-import kotlinx.serialization.json.*
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
 
 @Serializable
 data class OutputData(val text: String, val data: JsonElement, val traceId: String, val disableSensitiveLogging: Boolean, val source: String)
@@ -101,7 +106,6 @@ sealed interface CognigyEvent {
     data class BrokenEvent(val data: SocketIoPacket.Event, val reason: String, val t: Throwable?) : OutputEvent
 }
 
-
 fun decodeCognigyEvent(json: Json, packet: SocketIoPacket.Event): CognigyEvent = when {
     packet.arguments.isEmpty() -> CognigyEvent.BrokenEvent(packet, "no arguments given, exactly one needed", null)
     packet.arguments.size > 1 -> CognigyEvent.BrokenEvent(packet, "${packet.arguments.size} arguments given, exactly one needed", null)
@@ -126,7 +130,7 @@ fun decodeCognigyEvent(json: Json, packet: SocketIoPacket.Event): CognigyEvent =
  * Encodes the data into a socket.io message packet. In theory a SerializationException could be thrown,
  * it is very unlikely unless the entire project is misconfigured, since only known closed types are being encoded here.
  */
-private inline fun <reified T: Any> data(json: Json, name: String, event: T) =
+private inline fun <reified T : Any> data(json: Json, name: String, event: T) =
     SocketIoPacket.Event(null, null, name, listOf(json.encodeToJsonElement(event)))
 
 fun encodeCognigyEvent(json: Json, event: CognigyEvent): SocketIoPacket = when (event) {

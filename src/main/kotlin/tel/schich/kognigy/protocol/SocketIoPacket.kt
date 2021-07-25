@@ -162,7 +162,6 @@ sealed interface SocketIoPacket {
     }
 }
 
-
 private fun encodePacket(
     json: Json,
     type: Int,

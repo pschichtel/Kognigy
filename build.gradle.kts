@@ -6,6 +6,7 @@ plugins {
     kotlin("plugin.serialization")
     id("org.jetbrains.dokka")
     id("io.github.gradle-nexus.publish-plugin")
+    id("io.gitlab.arturbosch.detekt")
 }
 
 group = "tel.schich.kognigy"

@@ -46,7 +46,15 @@ val javadocJar by tasks.creating(Jar::class) {
     from(tasks.dokkaJavadoc)
 }
 
+fun isSnapshot() = version.toString().endsWith("-SNAPSHOT")
+
 publishing {
+    repositories {
+        maven {
+            name = "cubyte"
+            url = uri("https://maven.cubyte.org/repository/${if (isSnapshot()) "snapshots" else "releases"}/")
+        }
+    }
     publications {
         create<MavenPublication>("mavenJava") {
             from(components["java"])

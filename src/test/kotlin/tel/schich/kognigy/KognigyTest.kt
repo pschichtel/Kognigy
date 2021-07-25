@@ -19,12 +19,16 @@ import kotlin.test.assertEquals
 
 class KognigyTest {
 
+    /**
+     * The endpoint that is used here should be backed by a flow that simply reproduces a
+     * response for each input it gets.
+     */
     @EnabledIfEnvironmentVariables(
         EnabledIfEnvironmentVariable(named = ENDPOINT_URL_ENV, matches = ".*"),
         EnabledIfEnvironmentVariable(named = ENDPOINT_TOKEN_ENV, matches = ".*"),
     )
     @Test
-    fun test() {
+    fun cognigyConnectivity() {
         URLBuilder()
         runBlocking {
             val uri = Url(System.getenv(ENDPOINT_URL_ENV))
@@ -32,23 +36,25 @@ class KognigyTest {
 
             val kognigy = Kognigy.simple()
 
-            val session = kognigy.connect(uri, token, "session!", "user!", "channel!", "kognigy!")
-            session.sendInput("Start!")
+            val session = KognigySession("session!", uri, token, "user!", "channel!", "kognigy!")
+
+            val connection = kognigy.connect(session)
+            connection.sendInput("Start!")
 
             val counter = AtomicInteger(0)
-            session.output
+            connection.output
                 .filterNot { it is CognigyEvent.FinalPing }
                 .take(5)
                 .onEach { event ->
                     logger.info("$event")
                     if (counter.incrementAndGet() < 5) {
                         delay(2500)
-                        session.sendInput("Some text! ${Random.nextInt()}")
+                        connection.sendInput("Some text! ${Random.nextInt()}")
                     }
                 }
                 .launchIn(this)
                 .join()
-            session.close()
+            connection.close()
 
             assertEquals(5, counter.get(), "should take exactly 5 events")
         }

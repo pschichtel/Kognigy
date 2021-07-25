@@ -18,6 +18,13 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import mu.KLoggable
@@ -27,19 +34,28 @@ import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
 import tel.schich.kognigy.protocol.EngineIoPacket
 import tel.schich.kognigy.protocol.SocketIoPacket
 import tel.schich.kognigy.protocol.decodeCognigyEvent
-import tel.schich.kognigy.protocol.decodeEngineIoPacket
-import tel.schich.kognigy.protocol.decodeSocketIoPacket
 import tel.schich.kognigy.protocol.encodeCognigyEvent
-import tel.schich.kognigy.protocol.encodeEngineIoPacket
-import tel.schich.kognigy.protocol.encodeSocketIoPacket
 
+@Serializable
 data class KognigySession(
+    val id: String,
+    @Serializable(with = UrlSerializer::class)
+    val endpoint: Url,
     val endpointToken: String,
-    val sessionId: String,
     val userId: String,
     val channelName: String,
     val source: String,
-    val passthroughIp: String?,
+    val passthroughIp: String? = null,
+)
+
+private class UrlSerializer : KSerializer<Url> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("Url", PrimitiveKind.STRING)
+    override fun deserialize(decoder: Decoder): Url = Url(decoder.decodeString())
+    override fun serialize(encoder: Encoder, value: Url) = encoder.encodeString(value.toString())
+}
+
+data class KognigyConnection(
+    val session: KognigySession,
     val output: Flow<OutputEvent>,
     private val encoder: (InputEvent) -> Frame,
     private val wsSession: DefaultClientWebSocketSession,
@@ -53,12 +69,12 @@ data class KognigySession(
         resetContext: Boolean = false,
     ) {
         val event = CognigyEvent.ProcessInput(
-            urlToken = endpointToken,
-            userId = userId,
-            sessionId = sessionId,
-            channel = channelName,
-            source = source,
-            passthroughIp = passthroughIp,
+            urlToken = session.endpointToken,
+            userId = session.userId,
+            sessionId = session.id,
+            channel = session.channelName,
+            source = session.source,
+            passthroughIp = session.passthroughIp,
             reloadFlow = reloadFlow,
             resetFlow = resetFlow,
             resetState = resetState,
@@ -81,30 +97,23 @@ class Kognigy(
     private val client: HttpClient,
     private val json: Json,
 ) {
+    suspend fun connect(session: KognigySession): KognigyConnection {
+        val url = session.endpoint
 
-    suspend fun connect(
-        uri: Url,
-        endpointToken: String,
-        sessionId: String,
-        userId: String,
-        channelName: String,
-        source: String,
-        passthroughIp: String? = null
-    ): KognigySession {
-        if (!(uri.protocol == URLProtocol.HTTP || uri.protocol == URLProtocol.HTTPS)) {
+        if (!(url.protocol == URLProtocol.HTTP || url.protocol == URLProtocol.HTTPS)) {
             throw IllegalArgumentException("Protocol must be http or https")
         }
 
         fun encodeInput(event: InputEvent): Frame =
-            encodeEngineIoPacket(json, encodeSocketIoPacket(json, encodeCognigyEvent(json, event)))
+            EngineIoPacket.encode(json, SocketIoPacket.encode(json, encodeCognigyEvent(json, event)))
 
-        val httpRequest = client.request<HttpStatement>(uri) {
+        val httpRequest = client.request<HttpStatement>(url) {
             method = HttpMethod.Get
             url {
                 protocol =
-                    if (uri.protocol.isSecure()) URLProtocol.WSS
+                    if (url.protocol.isSecure()) URLProtocol.WSS
                     else URLProtocol.WS
-                port = if (uri.port <= 0) protocol.defaultPort else uri.port
+                port = if (url.port <= 0) protocol.defaultPort else url.port
                 encodedPath = "/socket.io/"
                 parameter("transport", "websocket")
             }
@@ -112,19 +121,9 @@ class Kognigy(
         val wsSession = httpRequest.receive<DefaultClientWebSocketSession>()
         val flow = wsSession.incoming
             .consumeAsFlow()
-            .mapNotNull { frame -> processWebsocketFrame(frame) { wsSession.send(encodeEngineIoPacket(json, it)) } }
+            .mapNotNull { frame -> processWebsocketFrame(frame) { wsSession.send(EngineIoPacket.encode(json, it)) } }
 
-        return KognigySession(
-            endpointToken,
-            sessionId,
-            userId,
-            channelName,
-            source,
-            passthroughIp,
-            flow,
-            ::encodeInput,
-            wsSession,
-        )
+        return KognigyConnection(session, flow, ::encodeInput, wsSession)
     }
 
     private suspend fun processWebsocketFrame(frame: Frame, sink: suspend (EngineIoPacket) -> Unit): OutputEvent? {
@@ -139,7 +138,7 @@ class Kognigy(
     }
 
     private suspend fun processEngineIoPacket(frame: Frame.Text, sink: suspend (EngineIoPacket) -> Unit): OutputEvent? {
-        when (val packet = decodeEngineIoPacket(json, frame)) {
+        when (val packet = EngineIoPacket.decode(json, frame)) {
             is EngineIoPacket.Open -> logger.debug("engine.io open: $packet")
             is EngineIoPacket.Close -> logger.debug("engine.io close")
             is EngineIoPacket.TextMessage -> return processSocketIoPacket(packet)
@@ -153,7 +152,7 @@ class Kognigy(
     }
 
     private fun processSocketIoPacket(engineIoPacket: EngineIoPacket.TextMessage): OutputEvent? {
-        when (val packet = decodeSocketIoPacket(json, engineIoPacket)) {
+        when (val packet = SocketIoPacket.decode(json, engineIoPacket)) {
             is SocketIoPacket.Connect -> logger.debug { "socket.io connect: ${packet.data}" }
             is SocketIoPacket.Disconnect -> logger.debug { "socket.io disconnect" }
             is SocketIoPacket.Event -> when (val event = decodeCognigyEvent(json, packet)) {

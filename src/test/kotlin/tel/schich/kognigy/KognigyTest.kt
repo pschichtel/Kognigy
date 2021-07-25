@@ -5,6 +5,7 @@ import io.ktor.http.Url
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.runBlocking
@@ -51,6 +52,9 @@ class KognigyTest {
                         delay(2500)
                         connection.sendInput("Some text! ${Random.nextInt()}")
                     }
+                }
+                .onCompletion { t ->
+                    logger.error(t) { "flow completed" }
                 }
                 .launchIn(this)
                 .join()

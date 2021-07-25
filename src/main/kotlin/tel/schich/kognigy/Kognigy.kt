@@ -4,9 +4,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.features.HttpTimeout
 import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.features.websocket.WebSockets
+import io.ktor.client.features.websocket.webSocketSession
 import io.ktor.client.request.parameter
-import io.ktor.client.request.request
-import io.ktor.client.statement.HttpStatement
 import io.ktor.http.HttpMethod
 import io.ktor.http.URLProtocol
 import io.ktor.http.Url
@@ -106,7 +105,7 @@ class Kognigy(
         fun encodeInput(event: InputEvent): Frame =
             EngineIoPacket.encode(json, SocketIoPacket.encode(json, CognigyEvent.encode(json, event)))
 
-        val httpRequest = client.request<HttpStatement>(url) {
+        val wsSession = client.webSocketSession {
             method = HttpMethod.Get
             url {
                 protocol =
@@ -117,7 +116,6 @@ class Kognigy(
                 parameter("transport", "websocket")
             }
         }
-        val wsSession = httpRequest.receive<DefaultClientWebSocketSession>()
         val flow = wsSession.incoming
             .consumeAsFlow()
             .mapNotNull { frame -> processWebsocketFrame(frame) { wsSession.send(EngineIoPacket.encode(json, it)) } }

@@ -14,10 +14,18 @@ sealed interface CognigyEvent {
     sealed interface OutputEvent : CognigyEvent
 
     @Serializable
-    data class OutputData(val text: String, val data: JsonElement, val traceId: String, val disableSensitiveLogging: Boolean, val source: String)
+    data class OutputData(
+        val text: String,
+        val data: JsonElement,
+        val traceId: String,
+        val disableSensitiveLogging: Boolean,
+        val source: String,
+    )
 
     @Serializable
-    data class ErrorData(val error: JsonElement)
+    data class ErrorData(
+        val error: JsonElement,
+    )
 
     @Serializable
     data class ProcessInput(
@@ -120,8 +128,12 @@ sealed interface CognigyEvent {
 
     companion object {
         fun decode(json: Json, packet: SocketIoPacket.Event): CognigyEvent = when {
-            packet.arguments.isEmpty() -> BrokenEvent(packet, "no arguments given, exactly one needed", null)
-            packet.arguments.size > 1 -> BrokenEvent(packet, "${packet.arguments.size} arguments given, exactly one needed", null)
+            packet.arguments.isEmpty() -> {
+                BrokenEvent(packet, "no arguments given, exactly one needed", null)
+            }
+            packet.arguments.size > 1 -> {
+                BrokenEvent(packet, "${packet.arguments.size} arguments given, exactly one needed", null)
+            }
             else -> {
                 try {
                     when (val name = packet.name) {
@@ -141,7 +153,8 @@ sealed interface CognigyEvent {
 
         /**
          * Encodes the data into a socket.io message packet. In theory a SerializationException could be thrown,
-         * it is very unlikely unless the entire project is misconfigured, since only known closed types are being encoded here.
+         * it is very unlikely unless the entire project is misconfigured, since only known closed types are being
+         * encoded here.
          */
         private inline fun <reified T : Any> data(json: Json, name: String, event: T) =
             SocketIoPacket.Event(null, null, name, listOf(json.encodeToJsonElement(event)))

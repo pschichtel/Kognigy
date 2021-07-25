@@ -137,30 +137,58 @@ class Kognigy(
 
     private suspend fun processEngineIoPacket(frame: Frame.Text, sink: suspend (EngineIoPacket) -> Unit): OutputEvent? {
         when (val packet = EngineIoPacket.decode(json, frame)) {
-            is EngineIoPacket.Open -> logger.debug("engine.io open: $packet")
-            is EngineIoPacket.Close -> logger.debug("engine.io close")
-            is EngineIoPacket.TextMessage -> return processSocketIoPacket(packet)
-            is EngineIoPacket.Ping -> sink(EngineIoPacket.Pong)
-            is EngineIoPacket.Pong -> logger.debug("engine.io pong")
-            is EngineIoPacket.Upgrade -> logger.debug("engine.io upgrade")
-            is EngineIoPacket.Noop -> logger.debug("engine.io noop")
-            is EngineIoPacket.Error -> logger.debug(packet.t) { "received broken engine.io packet: ${packet.reason}, ${packet.data}" }
+            is EngineIoPacket.Open -> logger.debug {
+                "engine.io open: $packet"
+            }
+            is EngineIoPacket.Close -> logger.debug {
+                "engine.io close"
+            }
+            is EngineIoPacket.TextMessage -> {
+                return processSocketIoPacket(packet)
+            }
+            is EngineIoPacket.Ping -> {
+                sink(EngineIoPacket.Pong)
+            }
+            is EngineIoPacket.Pong -> logger.debug {
+                "engine.io pong"
+            }
+            is EngineIoPacket.Upgrade -> logger.debug {
+                "engine.io upgrade"
+            }
+            is EngineIoPacket.Noop -> logger.debug {
+                "engine.io noop"
+            }
+            is EngineIoPacket.Error -> logger.debug(packet.t) {
+                "received broken engine.io packet: ${packet.reason}, ${packet.data}"
+            }
         }
         return null
     }
 
     private fun processSocketIoPacket(engineIoPacket: EngineIoPacket.TextMessage): OutputEvent? {
         when (val packet = SocketIoPacket.decode(json, engineIoPacket)) {
-            is SocketIoPacket.Connect -> logger.debug { "socket.io connect: ${packet.data}" }
-            is SocketIoPacket.Disconnect -> logger.debug { "socket.io disconnect" }
+            is SocketIoPacket.Connect -> logger.debug {
+                "socket.io connect: ${packet.data}"
+            }
+            is SocketIoPacket.Disconnect -> logger.debug {
+                "socket.io disconnect"
+            }
             is SocketIoPacket.Event -> when (val event = CognigyEvent.decode(json, packet)) {
                 is OutputEvent -> return event
                 else -> {}
             }
-            is SocketIoPacket.Acknowledge -> logger.debug { "socket.io ack: id=${packet.acknowledgeId}, data=${packet.data}" }
-            is SocketIoPacket.BinaryEvent -> logger.debug { "socket.io binary event: id=${packet.acknowledgeId}, name=${packet.name}, data=${packet.data}" }
-            is SocketIoPacket.BinaryAcknowledge -> logger.debug { "socket.io binary ack: id=${packet.acknowledgeId}, data=${packet.data}" }
-            is SocketIoPacket.BrokenPacket -> logger.warn(packet.t) { "received broken socket.io packet: ${packet.reason}, ${packet.packet}" }
+            is SocketIoPacket.Acknowledge -> logger.debug {
+                "socket.io ack: id=${packet.acknowledgeId}, data=${packet.data}"
+            }
+            is SocketIoPacket.BinaryEvent -> logger.debug {
+                "socket.io binary event: id=${packet.acknowledgeId}, name=${packet.name}, data=${packet.data}"
+            }
+            is SocketIoPacket.BinaryAcknowledge -> logger.debug {
+                "socket.io binary ack: id=${packet.acknowledgeId}, data=${packet.data}"
+            }
+            is SocketIoPacket.BrokenPacket -> logger.warn(packet.t) {
+                "received broken socket.io packet: ${packet.reason}, ${packet.packet}"
+            }
         }
         return null
     }

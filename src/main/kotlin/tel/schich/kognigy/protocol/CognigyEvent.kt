@@ -10,6 +10,8 @@ import kotlinx.serialization.json.encodeToJsonElement
 
 sealed interface CognigyEvent {
 
+    val name: String
+
     sealed interface InputEvent : CognigyEvent
     sealed interface OutputEvent : CognigyEvent
 
@@ -47,6 +49,8 @@ sealed interface CognigyEvent {
         val text: String?,
         val data: JsonElement?,
     ) : InputEvent {
+        override val name = NAME
+
         companion object {
             const val NAME = "processInput"
         }
@@ -54,6 +58,8 @@ sealed interface CognigyEvent {
 
     @Serializable
     sealed class Output : OutputEvent {
+        final override val name = NAME
+
         @Serializable
         @SerialName("output")
         data class Message(val data: OutputData) : Output()
@@ -70,6 +76,8 @@ sealed interface CognigyEvent {
     data class TypingStatus(
         val status: Status,
     ) : OutputEvent {
+        override val name = NAME
+
         @Serializable
         enum class Status {
             @SerialName("typingOn")
@@ -87,6 +95,7 @@ sealed interface CognigyEvent {
     data class FinalPing(
         val type: Type,
     ) : OutputEvent {
+        override val name = NAME
 
         @Serializable
         enum class Type {
@@ -109,6 +118,8 @@ sealed interface CognigyEvent {
         val isDisableSensitiveLogging: Boolean,
         val result: Boolean?,
     ) : OutputEvent {
+        override val name = NAME
+
         companion object {
             const val NAME = "triggeredElement"
         }
@@ -118,6 +129,8 @@ sealed interface CognigyEvent {
     data class Exception(
         val error: JsonElement,
     ) : OutputEvent {
+        override val name = NAME
+
         companion object {
             const val NAME = "exception"
         }
@@ -127,7 +140,9 @@ sealed interface CognigyEvent {
         val data: SocketIoPacket.Event,
         val reason: String,
         val t: Throwable?,
-    ) : OutputEvent
+    ) : OutputEvent {
+        override val name = "broken"
+    }
 
     companion object {
         fun decode(json: Json, packet: SocketIoPacket.Event): CognigyEvent = when {

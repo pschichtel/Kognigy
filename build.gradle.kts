@@ -9,8 +9,8 @@ plugins {
     id("io.gitlab.arturbosch.detekt")
 }
 
-group = "tel.schich.kognigy"
-version = "1.0.3-SNAPSHOT"
+group = "tel.schich"
+version = "1.0.3"
 
 dependencies {
     val ktorVersion = "1.6.1"

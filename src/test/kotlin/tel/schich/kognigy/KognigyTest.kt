@@ -30,7 +30,6 @@ class KognigyTest {
     )
     @Test
     fun cognigyConnectivity() {
-        URLBuilder()
         runBlocking {
             val uri = Url(System.getenv(ENDPOINT_URL_ENV))
             val token = System.getenv(ENDPOINT_TOKEN_ENV)

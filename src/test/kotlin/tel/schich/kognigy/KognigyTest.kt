@@ -1,6 +1,5 @@
 package tel.schich.kognigy
 
-import io.ktor.http.URLBuilder
 import io.ktor.http.Url
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNot

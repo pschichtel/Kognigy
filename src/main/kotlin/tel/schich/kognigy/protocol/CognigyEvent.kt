@@ -17,7 +17,7 @@ sealed interface CognigyEvent {
 
     @Serializable
     data class OutputData(
-        val text: String,
+        val text: String?,
         val data: JsonElement?,
         val traceId: String,
         val disableSensitiveLogging: Boolean,

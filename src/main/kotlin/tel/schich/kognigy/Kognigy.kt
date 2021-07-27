@@ -1,6 +1,7 @@
 package tel.schich.kognigy
 
 import io.ktor.client.HttpClient
+import io.ktor.client.HttpClientConfig
 import io.ktor.client.features.HttpTimeout
 import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.features.websocket.WebSockets
@@ -201,6 +202,7 @@ class Kognigy(
             @Suppress("UNUSED_PARAMETER")
             requestTimeoutMillis: Long = 2000,
             socketTimeoutMillis: Long = 2000,
+            customize: HttpClientConfig<*>.() -> Unit = {},
         ): Kognigy {
             val client = HttpClient {
                 install(WebSockets)
@@ -210,6 +212,8 @@ class Kognigy(
                     // this.requestTimeoutMillis = requestTimeoutMillis
                     this.socketTimeoutMillis = socketTimeoutMillis
                 }
+
+                customize()
             }
 
             val json = Json {

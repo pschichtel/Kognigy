@@ -41,6 +41,7 @@ import tel.schich.kognigy.protocol.CognigyEvent.InputEvent
 import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
 import tel.schich.kognigy.protocol.EngineIoPacket
 import tel.schich.kognigy.protocol.SocketIoPacket
+import java.util.concurrent.atomic.AtomicInteger
 
 @Serializable
 data class KognigySession(
@@ -142,17 +143,26 @@ class Kognigy(
 
         val outputs = Channel<OutputEvent>(Channel.UNLIMITED)
 
+        val pingCounter = AtomicInteger(0)
+
         if (pingIntervalMillis > 0) {
             timer(pingIntervalMillis, pingIntervalMillis)
                 .onEach {
                     wsSession.send(EngineIoPacket.encode(json, EngineIoPacket.Ping))
+                    if (pingCounter.getAndIncrement() != 0) {
+                        wsSession.cancel(
+                            CancellationException("engine.io pong didn't arrive for $pingIntervalMillis ms!")
+                        )
+                    }
                 }
                 .launchIn(wsSession)
         }
 
         wsSession.incoming
             .consumeAsFlow()
-            .mapNotNull { frame -> processWebsocketFrame(frame) { wsSession.send(EngineIoPacket.encode(json, it)) } }
+            .mapNotNull { frame ->
+                processWebsocketFrame(frame, pingCounter) { wsSession.send(EngineIoPacket.encode(json, it)) }
+            }
             .onEach(outputs::send)
             .onCompletion { cause -> outputs.close(cause) }
             .launchIn(wsSession)
@@ -160,9 +170,13 @@ class Kognigy(
         return KognigyConnection(session, outputs, ::encodeInput, wsSession)
     }
 
-    private suspend fun processWebsocketFrame(frame: Frame, sink: suspend (EngineIoPacket) -> Unit): OutputEvent? {
+    private suspend fun processWebsocketFrame(
+        frame: Frame,
+        pingCounter: AtomicInteger,
+        sink: suspend (EngineIoPacket) -> Unit,
+    ): OutputEvent? {
         when (frame) {
-            is Frame.Text -> return processEngineIoPacket(frame, sink)
+            is Frame.Text -> return processEngineIoPacket(frame, pingCounter, sink)
             is Frame.Binary -> logger.warn { "websocket binary, unable to process binary data: $frame" }
             is Frame.Close -> logger.debug { "websocket close: $frame" }
             is Frame.Ping -> logger.debug { "websocket ping: $frame" }
@@ -171,7 +185,11 @@ class Kognigy(
         return null
     }
 
-    private suspend fun processEngineIoPacket(frame: Frame.Text, sink: suspend (EngineIoPacket) -> Unit): OutputEvent? {
+    private suspend fun processEngineIoPacket(
+        frame: Frame.Text,
+        pingCounter: AtomicInteger,
+        sink: suspend (EngineIoPacket) -> Unit,
+    ): OutputEvent? {
         when (val packet = EngineIoPacket.decode(json, frame)) {
             is EngineIoPacket.Open -> logger.debug {
                 "engine.io open: $packet"
@@ -185,8 +203,9 @@ class Kognigy(
             is EngineIoPacket.Ping -> {
                 sink(EngineIoPacket.Pong)
             }
-            is EngineIoPacket.Pong -> logger.debug {
-                "engine.io pong"
+            is EngineIoPacket.Pong -> {
+                logger.debug { "engine.io pong" }
+                pingCounter.decrementAndGet()
             }
             is EngineIoPacket.Upgrade -> logger.debug {
                 "engine.io upgrade"

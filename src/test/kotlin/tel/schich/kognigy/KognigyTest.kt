@@ -34,7 +34,7 @@ class KognigyTest {
             val uri = Url(System.getenv(ENDPOINT_URL_ENV))
             val token = System.getenv(ENDPOINT_TOKEN_ENV)
 
-            val kognigy = Kognigy.simple()
+            val kognigy = Kognigy.simple(pingIntervalMillis = 700)
 
             val session = KognigySession("session!", uri, token, "user!", "channel!", "kognigy!")
 

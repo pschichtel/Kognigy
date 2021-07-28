@@ -2,6 +2,7 @@ package tel.schich.kognigy
 
 import io.ktor.http.Url
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onCompletion
@@ -42,12 +43,13 @@ class KognigyTest {
 
             val counter = AtomicInteger(0)
             connection.output
+                .consumeAsFlow()
                 .filterNot { it is CognigyEvent.FinalPing }
                 .take(5)
                 .onEach { event ->
                     logger.info("$event")
                     if (counter.incrementAndGet() < 5) {
-                        delay(500)
+                        delay(5000)
                         connection.sendInput("Some text! ${Random.nextInt()}")
                     }
                 }
@@ -56,6 +58,7 @@ class KognigyTest {
                 }
                 .launchIn(this)
                 .join()
+
             connection.close()
 
             assertEquals(5, counter.get(), "should take exactly 5 events")

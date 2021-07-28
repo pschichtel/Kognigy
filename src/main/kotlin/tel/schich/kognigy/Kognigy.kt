@@ -3,7 +3,6 @@ package tel.schich.kognigy
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.features.HttpTimeout
-import io.ktor.client.features.websocket.DefaultClientWebSocketSession
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocketSession
 import io.ktor.client.request.parameter
@@ -12,12 +11,21 @@ import io.ktor.http.URLProtocol
 import io.ktor.http.Url
 import io.ktor.http.cio.websocket.CloseReason
 import io.ktor.http.cio.websocket.Frame
+import io.ktor.http.cio.websocket.WebSocketSession
 import io.ktor.http.cio.websocket.close
 import io.ktor.http.isSecure
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -54,9 +62,9 @@ private class UrlSerializer : KSerializer<Url> {
 
 data class KognigyConnection(
     val session: KognigySession,
-    val output: Flow<OutputEvent>,
+    val output: ReceiveChannel<OutputEvent>,
     private val encoder: (InputEvent) -> Frame,
-    private val wsSession: DefaultClientWebSocketSession,
+    private val wsSession: WebSocketSession,
 ) {
     @Suppress("LongParameterList")
     suspend fun sendInput(
@@ -88,14 +96,27 @@ data class KognigyConnection(
 
     suspend fun close(closeReason: CloseReason = CloseReason(CloseReason.Codes.NORMAL, "")) {
         wsSession.close(closeReason)
-        wsSession.cancel()
+        cancel()
+    }
+
+    fun cancel(cause: CancellationException? = null) {
+        wsSession.cancel(cause)
     }
 }
 
 class Kognigy(
     private val client: HttpClient,
     private val json: Json,
+    private val pingIntervalMillis: Long,
 ) {
+    private fun timer(initialDelayMillis: Long, fixedDelayMillis: Long): Flow<Unit> = flow {
+        delay(initialDelayMillis)
+        while (true) {
+            emit(Unit)
+            delay(fixedDelayMillis)
+        }
+    }
+
     suspend fun connect(session: KognigySession): KognigyConnection {
         val url = session.endpoint
 
@@ -118,11 +139,25 @@ class Kognigy(
                 parameter("transport", "websocket")
             }
         }
-        val flow = wsSession.incoming
+
+        val outputs = Channel<OutputEvent>(Channel.UNLIMITED)
+
+        if (pingIntervalMillis > 0) {
+            timer(pingIntervalMillis, pingIntervalMillis)
+                .onEach {
+                    wsSession.send(EngineIoPacket.encode(json, EngineIoPacket.Ping))
+                }
+                .launchIn(wsSession)
+        }
+
+        wsSession.incoming
             .consumeAsFlow()
             .mapNotNull { frame -> processWebsocketFrame(frame) { wsSession.send(EngineIoPacket.encode(json, it)) } }
+            .onEach(outputs::send)
+            .onCompletion { cause -> outputs.close(cause) }
+            .launchIn(wsSession)
 
-        return KognigyConnection(session, flow, ::encodeInput, wsSession)
+        return KognigyConnection(session, outputs, ::encodeInput, wsSession)
     }
 
     private suspend fun processWebsocketFrame(frame: Frame, sink: suspend (EngineIoPacket) -> Unit): OutputEvent? {
@@ -199,18 +234,13 @@ class Kognigy(
 
         fun simple(
             connectTimeoutMillis: Long = 2000,
-            @Suppress("UNUSED_PARAMETER")
-            requestTimeoutMillis: Long = 2000,
-            socketTimeoutMillis: Long = 2000,
+            pingIntervalMillis: Long = 25000,
             customize: HttpClientConfig<*>.() -> Unit = {},
         ): Kognigy {
             val client = HttpClient {
                 install(WebSockets)
                 install(HttpTimeout) {
                     this.connectTimeoutMillis = connectTimeoutMillis
-                    // TODO upstream bug: https://youtrack.jetbrains.com/issue/KTOR-2946
-                    // this.requestTimeoutMillis = requestTimeoutMillis
-                    this.socketTimeoutMillis = socketTimeoutMillis
                 }
 
                 customize()
@@ -220,7 +250,7 @@ class Kognigy(
                 encodeDefaults = true
             }
 
-            return Kognigy(client, json)
+            return Kognigy(client, json, pingIntervalMillis)
         }
     }
 }

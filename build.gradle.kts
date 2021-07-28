@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "tel.schich"
-version = "1.0.5"
+version = "1.0.6-SNAPSHOT"
 
 dependencies {
     val ktorVersion = "1.6.1"

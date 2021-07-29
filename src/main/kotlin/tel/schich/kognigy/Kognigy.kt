@@ -41,6 +41,7 @@ import tel.schich.kognigy.protocol.CognigyEvent.InputEvent
 import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
 import tel.schich.kognigy.protocol.EngineIoPacket
 import tel.schich.kognigy.protocol.SocketIoPacket
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 @Serializable
@@ -149,9 +150,7 @@ class Kognigy(
                 .onEach {
                     wsSession.send(EngineIoPacket.encode(json, EngineIoPacket.Ping))
                     if (pingCounter.getAndIncrement() != 0) {
-                        wsSession.cancel(
-                            CancellationException("engine.io pong didn't arrive for $pingIntervalMillis ms!")
-                        )
+                        throw TimeoutException("engine.io pong didn't arrive for $pingIntervalMillis ms!")
                     }
                 }
                 .launchIn(wsSession)

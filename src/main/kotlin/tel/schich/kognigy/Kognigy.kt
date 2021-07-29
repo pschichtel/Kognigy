@@ -162,7 +162,13 @@ class Kognigy(
                 processWebsocketFrame(frame, pingCounter) { wsSession.send(EngineIoPacket.encode(json, it)) }
             }
             .onEach(outputs::send)
-            .onCompletion { cause -> outputs.close(cause) }
+            .onCompletion { cause ->
+                if (cause is CancellationException) {
+                    outputs.close()
+                } else {
+                    outputs.close(cause)
+                }
+            }
             .launchIn(wsSession)
 
         return KognigyConnection(session, outputs, ::encodeInput, wsSession)

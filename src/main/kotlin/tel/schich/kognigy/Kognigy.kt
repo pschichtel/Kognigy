@@ -97,7 +97,6 @@ data class KognigyConnection(
 
     suspend fun close(closeReason: CloseReason = CloseReason(CloseReason.Codes.NORMAL, "")) {
         wsSession.close(closeReason)
-        cancel()
     }
 
     fun cancel(cause: CancellationException? = null) {

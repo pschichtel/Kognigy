@@ -13,7 +13,7 @@ group = "tel.schich"
 version = "1.1.1"
 
 dependencies {
-    val ktorVersion = "1.6.1"
+    val ktorVersion = "1.6.2"
     val coroutinesVersion = "1.5.1"
     val serializationVersion = "1.2.2"
     val junitVersion = "5.3.1"

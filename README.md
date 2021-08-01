@@ -11,7 +11,7 @@ The library implements enough of the socket.io protocol and Cognigy's protocol o
  * The engine.io and socket.io protocol layers only support the WebSockets transport.
  * No automatic reconnection mechanism exists.
  * While the Cognigy protocol is fairly simple, there is very little documentation on it and
-   significant parts of the implementation are based on refactoring of the official webchat module.
+   significant parts of the implementation are based on reverse engineering of the official webchat module and SocketClient library.
  * Since Cognigy does not use any Binary frames, binary packet support in engine.io and socket.io
    have not been implemented.
  * While all runtime dependencies are intentionally multiplatform capable, no attempt as been

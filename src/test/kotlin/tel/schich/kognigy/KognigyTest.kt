@@ -1,6 +1,5 @@
 package tel.schich.kognigy
 
-import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.http.Url
 import kotlinx.coroutines.delay

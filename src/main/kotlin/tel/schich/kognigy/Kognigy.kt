@@ -2,7 +2,8 @@ package tel.schich.kognigy
 
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
-import io.ktor.client.engine.*
+import io.ktor.client.engine.HttpClientEngineConfig
+import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.features.HttpTimeout
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocketSession

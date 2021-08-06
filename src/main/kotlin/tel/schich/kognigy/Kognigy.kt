@@ -2,6 +2,7 @@ package tel.schich.kognigy
 
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
+import io.ktor.client.engine.*
 import io.ktor.client.features.HttpTimeout
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocketSession
@@ -255,12 +256,13 @@ class Kognigy(
     companion object : KLoggable {
         override val logger = logger()
 
-        fun simple(
+        fun <T : HttpClientEngineConfig> simple(
+            engineFactory: HttpClientEngineFactory<T>,
             connectTimeoutMillis: Long = 2000,
             pingIntervalMillis: Long = 25000,
-            customize: HttpClientConfig<*>.() -> Unit = {},
+            customize: HttpClientConfig<T>.() -> Unit = {},
         ): Kognigy {
-            val client = HttpClient {
+            val client = HttpClient(engineFactory) {
                 install(WebSockets)
                 install(HttpTimeout) {
                     this.connectTimeoutMillis = connectTimeoutMillis

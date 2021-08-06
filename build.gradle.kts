@@ -21,12 +21,12 @@ dependencies {
     api(platform("org.jetbrains.kotlin:kotlin-bom"))
     api(kotlin("stdlib-jdk8"))
     api("io.ktor:ktor-client-core:$ktorVersion")
-    api("io.ktor:ktor-client-cio:$ktorVersion")
     api("io.ktor:ktor-client-websockets:$ktorVersion")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
     api("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
     api("io.github.microutils:kotlin-logging-jvm:2.0.10")
 
+    testImplementation("io.ktor:ktor-client-cio:$ktorVersion")
     testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")

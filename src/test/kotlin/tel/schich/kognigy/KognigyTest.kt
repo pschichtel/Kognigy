@@ -1,5 +1,7 @@
 package tel.schich.kognigy
 
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
 import io.ktor.http.Url
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.consumeAsFlow
@@ -34,7 +36,7 @@ class KognigyTest {
             val uri = Url(System.getenv(ENDPOINT_URL_ENV))
             val token = System.getenv(ENDPOINT_TOKEN_ENV)
 
-            val kognigy = Kognigy.simple(pingIntervalMillis = 700)
+            val kognigy = Kognigy.simple(CIO, pingIntervalMillis = 700)
 
             val session = KognigySession("session!", uri, token, "user!", "channel!", "kognigy!")
 

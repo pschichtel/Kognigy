@@ -13,9 +13,9 @@ group = "tel.schich"
 version = "1.2.1-SNAPSHOT"
 
 dependencies {
-    val ktorVersion = "1.6.6"
-    val coroutinesVersion = "1.5.2"
-    val serializationVersion = "1.3.1"
+    val ktorVersion = "1.6.7"
+    val coroutinesVersion = "1.6.0"
+    val serializationVersion = "1.3.2"
     val junitVersion = "5.8.2"
 
     api(platform("org.jetbrains.kotlin:kotlin-bom"))
@@ -24,7 +24,7 @@ dependencies {
     api("io.ktor:ktor-client-websockets:$ktorVersion")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
     api("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
-    api("io.github.microutils:kotlin-logging-jvm:2.1.0")
+    api("io.github.microutils:kotlin-logging-jvm:2.1.21")
 
     testImplementation("io.ktor:ktor-client-cio:$ktorVersion")
     testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")

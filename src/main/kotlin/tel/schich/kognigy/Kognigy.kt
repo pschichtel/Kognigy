@@ -78,6 +78,7 @@ data class KognigyConnection(
         resetFlow: Boolean = false,
         resetState: Boolean = false,
         resetContext: Boolean = false,
+        flush: Boolean = false,
     ) {
         val event = CognigyEvent.ProcessInput(
             urlToken = session.endpointToken,
@@ -93,10 +94,15 @@ data class KognigyConnection(
             data = data,
             text = text,
         )
-        send(event)
+        send(event, flush)
     }
 
-    suspend fun send(event: InputEvent) = wsSession.send(encoder(event))
+    suspend fun send(event: InputEvent, flush: Boolean = false) {
+        wsSession.send(encoder(event))
+        if (flush) {
+            wsSession.flush()
+        }
+    }
 
     suspend fun close(closeReason: CloseReason = CloseReason(CloseReason.Codes.NORMAL, "")) {
         wsSession.close(closeReason)

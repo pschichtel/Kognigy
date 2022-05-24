@@ -4,20 +4,12 @@ import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngineConfig
 import io.ktor.client.engine.HttpClientEngineFactory
-import io.ktor.client.features.HttpTimeout
-import io.ktor.client.features.websocket.WebSockets
-import io.ktor.client.features.websocket.webSocketSession
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.parameter
-import io.ktor.http.HttpMethod
-import io.ktor.http.URLProtocol
-import io.ktor.http.Url
-import io.ktor.http.cio.websocket.CloseReason
-import io.ktor.http.cio.websocket.Frame
-import io.ktor.http.cio.websocket.WebSocketSession
-import io.ktor.http.cio.websocket.close
-import io.ktor.http.isSecure
+import io.ktor.http.*
+import io.ktor.websocket.*
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.delay
@@ -205,6 +197,9 @@ class Kognigy(
             is EngineIoPacket.Close -> logger.debug {
                 "engine.io close"
             }
+            is EngineIoPacket.BinaryMessage -> logger.debug {
+                "engine.io binary frame"
+            }
             is EngineIoPacket.TextMessage -> {
                 return processSocketIoPacket(packet)
             }
@@ -232,6 +227,9 @@ class Kognigy(
         when (val packet = SocketIoPacket.decode(json, engineIoPacket)) {
             is SocketIoPacket.Connect -> logger.debug {
                 "socket.io connect: ${packet.data}"
+            }
+            is SocketIoPacket.ConnectError -> logger.debug {
+                "socket.io connectError: ${packet.data}"
             }
             is SocketIoPacket.Disconnect -> logger.debug {
                 "socket.io disconnect"

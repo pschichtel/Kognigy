@@ -13,9 +13,9 @@ group = "tel.schich"
 version = "1.3.0-SNAPSHOT"
 
 dependencies {
-    val ktorVersion = "1.6.7"
-    val coroutinesVersion = "1.6.0"
-    val serializationVersion = "1.3.2"
+    val ktorVersion = "2.0.1"
+    val coroutinesVersion = "1.6.1"
+    val serializationVersion = "1.3.3"
     val junitVersion = "5.8.2"
 
     api(platform("org.jetbrains.kotlin:kotlin-bom"))
@@ -31,7 +31,7 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
     testImplementation(kotlin("test-junit5"))
-    testImplementation("org.slf4j:slf4j-simple:1.7.32")
+    testImplementation("org.slf4j:slf4j-simple:1.7.36")
 }
 
 tasks.withType<Test> {

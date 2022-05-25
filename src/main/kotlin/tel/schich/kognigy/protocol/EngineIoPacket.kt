@@ -1,6 +1,7 @@
 package tel.schich.kognigy.protocol
 
-import io.ktor.websocket.*
+import io.ktor.websocket.Frame
+import io.ktor.websocket.readText
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString

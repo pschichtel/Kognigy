@@ -89,15 +89,9 @@ kotlin {
     }
 }
 
-//val sourcesJar by tasks.creating(Jar::class) {
-//    dependsOn(JavaPlugin.CLASSES_TASK_NAME)
-//    archiveClassifier.set("sources")
-//    from(sourceSets["main"].allSource)
-//}
-
 val javadocJar by tasks.creating(Jar::class) {
-    from(tasks.dokkaJavadoc)
-    dependsOn(tasks.dokkaJavadoc)
+    from(tasks.dokkaHtml)
+    dependsOn(tasks.dokkaHtml)
     archiveClassifier.set("javadoc")
 }
 
@@ -111,10 +105,7 @@ publishing {
         }
     }
     publications {
-        create<MavenPublication>("mavenJava") {
-            from(components["java"])
-            artifact(tasks.sourcesJar)
-            artifact(javadocJar)
+        publications.withType<MavenPublication> {
             pom {
                 name.set("Kognigy")
                 description.set("A simple socket.io client for Cognigy.")
@@ -138,13 +129,14 @@ publishing {
                     developerConnection.set("scm:git:git@github.com:pschichtel/kognigy")
                 }
             }
+            artifact(javadocJar)
         }
     }
 }
 
 signing {
     useGpgCmd()
-    sign(publishing.publications["mavenJava"])
+    sign(publishing.publications)
 }
 
 nexusPublishing {

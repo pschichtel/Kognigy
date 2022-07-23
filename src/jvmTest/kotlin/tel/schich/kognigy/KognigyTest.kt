@@ -2,6 +2,7 @@ package tel.schich.kognigy
 
 import io.ktor.client.engine.cio.*
 import io.ktor.http.Url
+import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.consumeAsFlow
@@ -15,7 +16,6 @@ import mu.KotlinLogging
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariables
 import tel.schich.kognigy.protocol.CognigyEvent
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -45,7 +45,7 @@ class KognigyTest {
             val connection = kognigy.connect(session)
             connection.sendInput("Start!")
 
-            val counter = AtomicInteger(0)
+            val counter = atomic(0)
             connection.output
                 .consumeAsFlow()
                 .filterNot { it is CognigyEvent.FinalPing }
@@ -69,7 +69,7 @@ class KognigyTest {
 
             connection.close()
 
-            assertEquals(5, counter.get(), "should take exactly 5 events")
+            assertEquals(5, counter.value, "should take exactly 5 events")
         }
     }
 

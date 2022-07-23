@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.runBlocking
-import mu.KLoggable
+import mu.KotlinLogging
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariables
 import tel.schich.kognigy.protocol.CognigyEvent
@@ -19,6 +19,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+
+private val logger = KotlinLogging.logger {}
 
 class KognigyTest {
 
@@ -71,9 +73,7 @@ class KognigyTest {
         }
     }
 
-    private companion object : KLoggable {
-        override val logger = logger()
-
+    private companion object {
         const val ENDPOINT_URL_ENV = "ENDPOINT_URL"
         const val ENDPOINT_TOKEN_ENV = "ENDPOINT_TOKEN"
     }

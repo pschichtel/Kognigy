@@ -2,6 +2,7 @@ package tel.schich.kognigy
 
 import io.ktor.client.engine.cio.*
 import io.ktor.http.Url
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.filterNot
@@ -55,7 +56,11 @@ class KognigyTest {
                     }
                 }
                 .onCompletion { t ->
-                    logger.error(t) { "flow completed" }
+                    when (t) {
+                        null -> logger.info { "flow completed normally" }
+                        is CancellationException -> logger.info(t) { "flow got cancelled" }
+                        else -> logger.error(t) { "flow completed abnormally" }
+                    }
                 }
                 .launchIn(this)
                 .join()

@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.plugin.KotlinJsCompilerType.IR
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -15,6 +16,11 @@ plugins {
 group = "tel.schich"
 version = "1.3.1-SNAPSHOT"
 
+val ktorVersion = "2.0.3"
+val coroutinesVersion = "1.6.4"
+val serializationVersion = "1.3.3"
+val atomicfuVersion = "0.18.3"
+
 
 tasks.withType<Test> {
     useJUnitPlatform()
@@ -27,6 +33,14 @@ tasks.withType<KotlinCompile> {
     }
 }
 
+tasks.withType<Jar>().configureEach {
+    metaInf.with(
+        copySpec {
+            from("${project.rootDir}/LICENSE")
+        }
+    )
+}
+
 repositories {
     mavenCentral()
 }
@@ -35,7 +49,7 @@ kotlin {
     jvm {
         withJava()
     }
-    js {
+    js(IR) {
         browser {
             binaries.executable()
         }
@@ -45,10 +59,6 @@ kotlin {
         val commonMain by getting {
 
             dependencies {
-                val ktorVersion = "2.0.3"
-                val coroutinesVersion = "1.6.4"
-                val serializationVersion = "1.3.3"
-                val atomicfuVersion = "0.18.3"
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
                 implementation("io.ktor:ktor-client-websockets:$ktorVersion")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
@@ -69,7 +79,6 @@ kotlin {
         val jvmTest by getting {
             dependsOn(commonTest)
             dependencies {
-                val ktorVersion = "2.0.3"
                 val junitVersion = "5.8.2"
                 implementation("io.ktor:ktor-client-cio:$ktorVersion")
                 implementation(kotlin("test"))
@@ -87,9 +96,9 @@ kotlin {
 //}
 
 val javadocJar by tasks.creating(Jar::class) {
+    from(tasks.dokkaJavadoc)
     dependsOn(tasks.dokkaJavadoc)
     archiveClassifier.set("javadoc")
-    from(tasks.dokkaJavadoc)
 }
 
 fun isSnapshot() = version.toString().endsWith("-SNAPSHOT")
@@ -104,7 +113,7 @@ publishing {
     publications {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
-            //artifact(sourcesJar)
+            artifact(tasks.sourcesJar)
             artifact(javadocJar)
             pom {
                 name.set("Kognigy")

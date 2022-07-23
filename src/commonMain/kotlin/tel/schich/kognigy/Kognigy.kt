@@ -49,7 +49,7 @@ import tel.schich.kognigy.protocol.SocketIoPacket
 
 class Data(val data: ByteArray) {
     fun toHexString() =
-        data.joinToString(" ") { it.toUByte().toString().padStart(2, '0') }
+        data.joinToString(" ") { it.toUByte().toString(16).uppercase().padStart(2, '0') }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) {

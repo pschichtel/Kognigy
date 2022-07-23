@@ -12,6 +12,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import tel.schich.kognigy.Data
 
 /**
  * Based on: [github.com/socketio/socket.io-protocol](https://github.com/socketio/socket.io-protocol)
@@ -72,21 +73,21 @@ sealed interface SocketIoPacket {
         }
     }
 
-    class BinaryEvent(
+    data class BinaryEvent(
         override val namespace: String?,
         val acknowledgeId: Int?,
         val name: String,
-        val data: ByteArray,
+        val data: Data,
     ) : SocketIoPacket, Namespaced {
         companion object {
             val Format = """^(?:([^,]+),)?(\d+)?(\[.*])?$""".toRegex()
         }
     }
 
-    class BinaryAcknowledge(
+    data class BinaryAcknowledge(
         override val namespace: String?,
         val acknowledgeId: Int,
-        val data: ByteArray?,
+        val data: Data?,
     ) : SocketIoPacket, Namespaced {
         companion object {
             val Format = """^(?:([^,]+),)?(\d+)?(\[.*])?$""".toRegex()

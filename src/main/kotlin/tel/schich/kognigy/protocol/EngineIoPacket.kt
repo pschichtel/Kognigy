@@ -7,6 +7,7 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import tel.schich.kognigy.Data
 
 /**
  * Based on: [github.com/socketio/engine.io-protocol](https://github.com/socketio/engine.io-protocol)
@@ -30,8 +31,8 @@ sealed interface EngineIoPacket {
         val message: String,
     ) : EngineIoPacket
 
-    class BinaryMessage(
-        val data: ByteArray,
+    data class BinaryMessage(
+        val data: Data,
     ) : EngineIoPacket
 
     object Upgrade : EngineIoPacket
@@ -74,7 +75,7 @@ sealed interface EngineIoPacket {
             is Ping -> Frame.Text("2probe")
             is Pong -> Frame.Text("3probe")
             is TextMessage -> Frame.Text("4${packet.message}")
-            is BinaryMessage -> Frame.Binary(true, packet.data)
+            is BinaryMessage -> Frame.Binary(true, packet.data.data)
             is Upgrade -> Frame.Text("5")
             is Noop -> Frame.Text("6")
             is Error -> Frame.Text(packet.data)

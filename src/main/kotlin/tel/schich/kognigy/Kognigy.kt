@@ -47,6 +47,24 @@ import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
 import tel.schich.kognigy.protocol.EngineIoPacket
 import tel.schich.kognigy.protocol.SocketIoPacket
 
+class Data(val data: ByteArray) {
+    fun toHexString() =
+        data.joinToString(" ") { it.toUByte().toString().padStart(2, '0') }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
+        val otherData = (other as? Data)?.data ?: return false
+
+        return data.contentEquals(otherData)
+    }
+
+    override fun hashCode(): Int {
+        return data.contentHashCode()
+    }
+}
+
 class PingTimeoutException(message: String) : CancellationException(message)
 
 private val logger = KotlinLogging.logger {}
@@ -235,9 +253,6 @@ class Kognigy(
         }
         return null
     }
-
-    private fun ByteArray.toHexString() =
-        joinToString(" ") { it.toUByte().toString().padStart(2, '0') }
 
     private fun processSocketIoPacket(engineIoPacket: EngineIoPacket.TextMessage): OutputEvent? {
         when (val packet = SocketIoPacket.decode(json, engineIoPacket)) {

@@ -37,7 +37,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import mu.KLoggable
+import mu.KotlinLogging
 import tel.schich.kognigy.protocol.CognigyEvent
 import tel.schich.kognigy.protocol.CognigyEvent.InputEvent
 import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
@@ -45,6 +45,8 @@ import tel.schich.kognigy.protocol.EngineIoPacket
 import tel.schich.kognigy.protocol.SocketIoPacket
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
+
+private val logger = KotlinLogging.logger {}
 
 @Serializable
 data class KognigySession(
@@ -262,9 +264,7 @@ class Kognigy(
         return null
     }
 
-    companion object : KLoggable {
-        override val logger = logger()
-
+    companion object {
         fun <T : HttpClientEngineConfig> simple(
             engineFactory: HttpClientEngineFactory<T>,
             connectTimeoutMillis: Long = 2000,

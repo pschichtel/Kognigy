@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     signing
     java
@@ -10,11 +12,11 @@ plugins {
 }
 
 group = "tel.schich"
-version = "1.3.0"
+version = "1.3.1-SNAPSHOT"
 
 dependencies {
-    val ktorVersion = "2.0.1"
-    val coroutinesVersion = "1.6.1"
+    val ktorVersion = "2.0.3"
+    val coroutinesVersion = "1.6.4"
     val serializationVersion = "1.3.3"
     val junitVersion = "5.8.2"
 
@@ -24,7 +26,7 @@ dependencies {
     api("io.ktor:ktor-client-websockets:$ktorVersion")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
     api("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
-    api("io.github.microutils:kotlin-logging-jvm:2.1.21")
+    implementation("io.github.microutils:kotlin-logging-jvm:2.1.23")
 
     testImplementation("io.ktor:ktor-client-cio:$ktorVersion")
     testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
@@ -36,6 +38,10 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+tasks.withType<KotlinCompile> {
+    kotlinOptions.jvmTarget = "1.8"
 }
 
 repositories {

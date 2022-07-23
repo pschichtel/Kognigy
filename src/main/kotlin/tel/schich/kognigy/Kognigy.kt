@@ -17,7 +17,10 @@ import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.WebSocketSession
 import io.ktor.websocket.close
+import kotlinx.atomicfu.AtomicInt
+import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.delay
@@ -43,8 +46,8 @@ import tel.schich.kognigy.protocol.CognigyEvent.InputEvent
 import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
 import tel.schich.kognigy.protocol.EngineIoPacket
 import tel.schich.kognigy.protocol.SocketIoPacket
-import java.util.concurrent.TimeoutException
-import java.util.concurrent.atomic.AtomicInteger
+
+class PingTimeoutException(message: String) : CancellationException(message)
 
 private val logger = KotlinLogging.logger {}
 
@@ -149,14 +152,14 @@ class Kognigy(
 
         val outputs = Channel<OutputEvent>(Channel.UNLIMITED)
 
-        val pingCounter = AtomicInteger(0)
+        val pingCounter = atomic(0)
 
         if (pingIntervalMillis > 0) {
             timer(pingIntervalMillis, pingIntervalMillis)
                 .onEach {
                     wsSession.send(EngineIoPacket.encode(json, EngineIoPacket.Ping))
                     if (pingCounter.getAndIncrement() != 0) {
-                        throw TimeoutException("engine.io pong didn't arrive for $pingIntervalMillis ms!")
+                        wsSession.cancel(PingTimeoutException("engine.io pong didn't arrive for $pingIntervalMillis ms!"))
                     }
                 }
                 .launchIn(wsSession)
@@ -182,7 +185,7 @@ class Kognigy(
 
     private suspend fun processWebsocketFrame(
         frame: Frame,
-        pingCounter: AtomicInteger,
+        pingCounter: AtomicInt,
         sink: suspend (EngineIoPacket) -> Unit,
     ): OutputEvent? {
         when (frame) {
@@ -197,7 +200,7 @@ class Kognigy(
 
     private suspend fun processEngineIoPacket(
         frame: Frame.Text,
-        pingCounter: AtomicInteger,
+        pingCounter: AtomicInt,
         sink: suspend (EngineIoPacket) -> Unit,
     ): OutputEvent? {
         when (val packet = EngineIoPacket.decode(json, frame)) {
@@ -233,6 +236,9 @@ class Kognigy(
         return null
     }
 
+    private fun ByteArray.toHexString() =
+        joinToString(" ") { it.toUByte().toString().padStart(2, '0') }
+
     private fun processSocketIoPacket(engineIoPacket: EngineIoPacket.TextMessage): OutputEvent? {
         when (val packet = SocketIoPacket.decode(json, engineIoPacket)) {
             is SocketIoPacket.Connect -> logger.debug {
@@ -252,10 +258,10 @@ class Kognigy(
                 "socket.io ack: id=${packet.acknowledgeId}, data=${packet.data}"
             }
             is SocketIoPacket.BinaryEvent -> logger.debug {
-                "socket.io binary event: id=${packet.acknowledgeId}, name=${packet.name}, data=${packet.data}"
+                "socket.io binary event: id=${packet.acknowledgeId}, name=${packet.name}, data=${packet.data.toHexString()}"
             }
             is SocketIoPacket.BinaryAcknowledge -> logger.debug {
-                "socket.io binary ack: id=${packet.acknowledgeId}, data=${packet.data}"
+                "socket.io binary ack: id=${packet.acknowledgeId}, data=${packet.data?.toHexString()}"
             }
             is SocketIoPacket.BrokenPacket -> logger.warn(packet.t) {
                 "received broken socket.io packet: ${packet.reason}, ${packet.packet}"

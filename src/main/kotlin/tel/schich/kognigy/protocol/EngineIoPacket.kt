@@ -7,7 +7,6 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.nio.ByteBuffer
 
 /**
  * Based on: [github.com/socketio/engine.io-protocol](https://github.com/socketio/engine.io-protocol)
@@ -31,8 +30,8 @@ sealed interface EngineIoPacket {
         val message: String,
     ) : EngineIoPacket
 
-    data class BinaryMessage(
-        val data: ByteBuffer,
+    class BinaryMessage(
+        val data: ByteArray,
     ) : EngineIoPacket
 
     object Upgrade : EngineIoPacket

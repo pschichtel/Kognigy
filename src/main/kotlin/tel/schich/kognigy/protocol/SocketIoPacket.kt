@@ -12,7 +12,6 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import java.nio.ByteBuffer
 
 /**
  * Based on: [github.com/socketio/socket.io-protocol](https://github.com/socketio/socket.io-protocol)
@@ -73,21 +72,21 @@ sealed interface SocketIoPacket {
         }
     }
 
-    data class BinaryEvent(
+    class BinaryEvent(
         override val namespace: String?,
         val acknowledgeId: Int?,
         val name: String,
-        val data: ByteBuffer,
+        val data: ByteArray,
     ) : SocketIoPacket, Namespaced {
         companion object {
             val Format = """^(?:([^,]+),)?(\d+)?(\[.*])?$""".toRegex()
         }
     }
 
-    data class BinaryAcknowledge(
+    class BinaryAcknowledge(
         override val namespace: String?,
         val acknowledgeId: Int,
-        val data: ByteBuffer?,
+        val data: ByteArray?,
     ) : SocketIoPacket, Namespaced {
         companion object {
             val Format = """^(?:([^,]+),)?(\d+)?(\[.*])?$""".toRegex()

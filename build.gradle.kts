@@ -13,7 +13,7 @@ plugins {
 }
 
 group = "tel.schich"
-version = "2.0.1-SNAPSHOT"
+version = "2.0.1"
 
 val ktorVersion = "2.1.0"
 val coroutinesVersion = "1.6.4"

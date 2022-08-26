@@ -100,12 +100,6 @@ val javadocJar by tasks.creating(Jar::class) {
 fun isSnapshot() = version.toString().endsWith("-SNAPSHOT")
 
 publishing {
-    repositories {
-        maven {
-            name = "cubyte"
-            url = uri("https://maven.cubyte.org/repository/${if (isSnapshot()) "snapshots" else "releases"}/")
-        }
-    }
     publications {
         publications.withType<MavenPublication> {
             pom {

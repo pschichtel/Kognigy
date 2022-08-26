@@ -13,7 +13,7 @@ plugins {
 }
 
 group = "tel.schich"
-version = "2.0.0"
+version = "2.0.1-SNAPSHOT"
 
 val ktorVersion = "2.1.0"
 val coroutinesVersion = "1.6.4"
@@ -63,7 +63,7 @@ kotlin {
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
                 implementation("io.ktor:ktor-client-websockets:$ktorVersion")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
+                api("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
                 implementation("io.github.microutils:kotlin-logging:2.1.23")
                 implementation("org.jetbrains.kotlinx:atomicfu:$atomicfuVersion")
             }

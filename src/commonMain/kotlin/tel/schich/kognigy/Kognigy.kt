@@ -1,8 +1,6 @@
 package tel.schich.kognigy
 
 import io.ktor.client.HttpClient
-import io.ktor.client.HttpClientConfig
-import io.ktor.client.engine.HttpClientEngineConfig
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.websocket.WebSockets
@@ -31,6 +29,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -48,8 +47,9 @@ import tel.schich.kognigy.protocol.EngineIoPacket
 import tel.schich.kognigy.protocol.SocketIoPacket
 
 class Data(val data: ByteArray) {
-    fun toHexString() =
-        data.joinToString(" ") { it.toUByte().toString(16).uppercase().padStart(2, '0') }
+    fun toHexString() = data.joinToString(" ") { byte ->
+        byte.toUByte().toString(radix = 16).uppercase().padStart(length = 2, padChar = '0')
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) {
@@ -133,10 +133,24 @@ data class KognigyConnection(
 }
 
 class Kognigy(
-    private val client: HttpClient,
-    private val json: Json,
-    private val pingIntervalMillis: Long,
+    engineFactory: HttpClientEngineFactory<*>,
+    connectTimeoutMillis: Long = 2000,
+    private val pingIntervalMillis: Long = 25000,
 ) {
+    @OptIn(ExperimentalSerializationApi::class)
+    private val json = Json {
+        encodeDefaults = true
+        explicitNulls = false
+    }
+
+    private val client = HttpClient(engineFactory) {
+        install(WebSockets)
+        install(HttpTimeout) {
+            this.connectTimeoutMillis = connectTimeoutMillis
+        }
+
+    }
+
     private fun timer(initialDelayMillis: Long, fixedDelayMillis: Long): Flow<Unit> = flow {
         delay(initialDelayMillis)
         while (true) {
@@ -284,29 +298,5 @@ class Kognigy(
             }
         }
         return null
-    }
-
-    companion object {
-        fun <T : HttpClientEngineConfig> simple(
-            engineFactory: HttpClientEngineFactory<T>,
-            connectTimeoutMillis: Long = 2000,
-            pingIntervalMillis: Long = 25000,
-            customize: HttpClientConfig<T>.() -> Unit = {},
-        ): Kognigy {
-            val client = HttpClient(engineFactory) {
-                install(WebSockets)
-                install(HttpTimeout) {
-                    this.connectTimeoutMillis = connectTimeoutMillis
-                }
-
-                customize()
-            }
-
-            val json = Json {
-                encodeDefaults = true
-            }
-
-            return Kognigy(client, json, pingIntervalMillis)
-        }
     }
 }

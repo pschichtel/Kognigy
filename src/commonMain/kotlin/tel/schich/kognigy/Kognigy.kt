@@ -76,8 +76,8 @@ data class KognigySession(
     val endpoint: Url,
     val endpointToken: String,
     val userId: String,
-    val channelName: String,
-    val source: String,
+    val channelName: String? = null,
+    val source: String? = null,
     val passthroughIp: String? = null,
 )
 

@@ -38,16 +38,16 @@ sealed interface CognigyEvent {
         val urlToken: String,
         val userId: String,
         val sessionId: String,
-        val channel: String,
-        val source: String,
+        val channel: String? = null,
+        val source: String? = null,
         @SerialName("passthroughIP")
         val passthroughIp: String?,
         val reloadFlow: Boolean,
         val resetFlow: Boolean,
         val resetState: Boolean,
         val resetContext: Boolean,
-        val text: String?,
-        val data: JsonElement?,
+        val text: String? = null,
+        val data: JsonElement? = null,
     ) : InputEvent {
         override val name = NAME
 

@@ -1,4 +1,3 @@
-import org.jetbrains.kotlin.gradle.plugin.KotlinJsCompilerType.IR
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -57,7 +56,6 @@ kotlin {
     }
     sourceSets {
         val commonMain by getting {
-
             dependencies {
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
                 implementation("io.ktor:ktor-client-websockets:$ktorVersion")
@@ -76,14 +74,15 @@ kotlin {
             }
         }
 
-        val jvmTest by getting {
+        getByName("jvmTest") {
             dependsOn(commonTest)
             dependencies {
-                val junitVersion = "5.8.2"
+                val junitVersion = "5.9.0"
                 implementation("io.ktor:ktor-client-cio:$ktorVersion")
                 implementation(kotlin("test"))
                 implementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
                 implementation("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
+                implementation("org.slf4j:slf4j-simple:1.7.36")
             }
         }
     }

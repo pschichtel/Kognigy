@@ -48,9 +48,12 @@ kotlin {
     jvm {
         withJava()
     }
-    js(IR) {
+    js {
         browser {
             binaries.executable()
+            testTask {
+                enabled = false
+            }
         }
         nodejs()
     }

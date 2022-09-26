@@ -3,6 +3,7 @@ package tel.schich.kognigy
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.UserAgent
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.parameter
@@ -136,6 +137,7 @@ class Kognigy(
     engineFactory: HttpClientEngineFactory<*>,
     connectTimeoutMillis: Long = 2000,
     private val pingIntervalMillis: Long = 25000,
+    private val userAgent: String = "Kognigy",
 ) {
     @OptIn(ExperimentalSerializationApi::class)
     private val json = Json {
@@ -148,7 +150,9 @@ class Kognigy(
         install(HttpTimeout) {
             this.connectTimeoutMillis = connectTimeoutMillis
         }
-
+        install(UserAgent) {
+            agent = userAgent
+        }
     }
 
     private fun timer(initialDelayMillis: Long, fixedDelayMillis: Long): Flow<Unit> = flow {
@@ -191,7 +195,8 @@ class Kognigy(
                 .onEach {
                     wsSession.send(EngineIoPacket.encode(json, EngineIoPacket.Ping))
                     if (pingCounter.getAndIncrement() != 0) {
-                        wsSession.cancel(PingTimeoutException("engine.io pong didn't arrive for $pingIntervalMillis ms!"))
+                        val reason = PingTimeoutException("engine.io pong didn't arrive for $pingIntervalMillis ms!")
+                        wsSession.cancel(reason)
                     }
                 }
                 .launchIn(wsSession)
@@ -288,7 +293,8 @@ class Kognigy(
                 "socket.io ack: id=${packet.acknowledgeId}, data=${packet.data}"
             }
             is SocketIoPacket.BinaryEvent -> logger.debug {
-                "socket.io binary event: id=${packet.acknowledgeId}, name=${packet.name}, data=${packet.data.toHexString()}"
+                val data = packet.data.toHexString()
+                "socket.io binary event: id=${packet.acknowledgeId}, name=${packet.name}, data=$data"
             }
             is SocketIoPacket.BinaryAcknowledge -> logger.debug {
                 "socket.io binary ack: id=${packet.acknowledgeId}, data=${packet.data?.toHexString()}"

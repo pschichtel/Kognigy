@@ -80,7 +80,7 @@ kotlin {
         getByName("jvmTest") {
             dependsOn(commonTest)
             dependencies {
-                val junitVersion = "5.9.0"
+                val junitVersion = "5.9.1"
                 implementation("io.ktor:ktor-client-cio:$ktorVersion")
                 implementation(kotlin("test"))
                 implementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
@@ -96,8 +96,6 @@ val javadocJar by tasks.creating(Jar::class) {
     dependsOn(tasks.dokkaHtml)
     archiveClassifier.set("javadoc")
 }
-
-fun isSnapshot() = version.toString().endsWith("-SNAPSHOT")
 
 publishing {
     publications {

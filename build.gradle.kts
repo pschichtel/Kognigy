@@ -44,9 +44,18 @@ repositories {
     mavenCentral()
 }
 
+java {
+    toolchain.languageVersion.set(JavaLanguageVersion.of("11"))
+}
+
 kotlin {
     jvm {
         withJava()
+        compilations.all {
+            kotlinOptions {
+                jvmTarget = "1.8"
+            }
+        }
     }
     js {
         browser {

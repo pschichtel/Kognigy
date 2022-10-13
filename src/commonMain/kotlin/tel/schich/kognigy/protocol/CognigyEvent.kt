@@ -7,6 +7,32 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
+import kotlin.jvm.JvmInline
+
+@Serializable
+@JvmInline
+value class EndpointToken(val value: String)
+
+@Serializable
+@JvmInline
+value class UserId(val value: String)
+
+@Serializable
+@JvmInline
+value class SessionId(val value: String)
+
+@Serializable
+@JvmInline
+value class ChannelName(val value: String)
+
+@Serializable
+@JvmInline
+value class Source(val value: String) {
+    companion object {
+        val Device = Source("device")
+        val Bot = Source("bot")
+    }
+}
 
 sealed interface CognigyEvent {
 
@@ -35,11 +61,11 @@ sealed interface CognigyEvent {
     @Serializable
     data class ProcessInput(
         @SerialName("URLToken")
-        val urlToken: String,
-        val userId: String,
-        val sessionId: String,
-        val channel: String? = null,
-        val source: String? = null,
+        val urlToken: EndpointToken,
+        val userId: UserId,
+        val sessionId: SessionId,
+        val channel: ChannelName? = null,
+        val source: Source,
         @SerialName("passthroughIP")
         val passthroughIp: String?,
         val reloadFlow: Boolean,

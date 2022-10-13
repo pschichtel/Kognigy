@@ -42,11 +42,16 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import mu.KotlinLogging
+import tel.schich.kognigy.protocol.ChannelName
 import tel.schich.kognigy.protocol.CognigyEvent
 import tel.schich.kognigy.protocol.CognigyEvent.InputEvent
 import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
+import tel.schich.kognigy.protocol.EndpointToken
 import tel.schich.kognigy.protocol.EngineIoPacket
+import tel.schich.kognigy.protocol.SessionId
 import tel.schich.kognigy.protocol.SocketIoPacket
+import tel.schich.kognigy.protocol.Source
+import tel.schich.kognigy.protocol.UserId
 
 class Data(val data: ByteArray) {
     fun toHexString() = data.joinToString(" ") { byte ->
@@ -73,13 +78,13 @@ private val logger = KotlinLogging.logger {}
 
 @Serializable
 data class KognigySession(
-    val id: String,
+    val id: SessionId,
     @Serializable(with = UrlSerializer::class)
     val endpoint: Url,
-    val endpointToken: String,
-    val userId: String,
-    val channelName: String? = null,
-    val source: String,
+    val endpointToken: EndpointToken,
+    val userId: UserId,
+    val channelName: ChannelName? = null,
+    val source: Source = Source.Device,
     val passthroughIp: String? = null,
 )
 

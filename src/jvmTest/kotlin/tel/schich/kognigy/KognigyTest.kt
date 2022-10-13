@@ -15,8 +15,15 @@ import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariables
+import tel.schich.kognigy.protocol.ChannelName
 import tel.schich.kognigy.protocol.CognigyEvent
+import tel.schich.kognigy.protocol.EndpointToken
+import tel.schich.kognigy.protocol.SessionId
+import tel.schich.kognigy.protocol.Source
+import tel.schich.kognigy.protocol.UserId
+import java.util.UUID
 import kotlin.random.Random
+import kotlin.random.nextUInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -40,7 +47,14 @@ class KognigyTest {
 
             val kognigy = Kognigy(CIO, pingIntervalMillis = 700, pingTimeoutMillis = 50)
 
-            val session = KognigySession("session!", uri, token, "user!", "channel!", "kognigy!")
+            val session = KognigySession(
+                SessionId("${UUID.randomUUID()}"),
+                uri,
+                EndpointToken(token),
+                UserId("kognigy-integration-test-${Random.nextUInt()}"),
+                ChannelName("kognigy"),
+                Source("kognigy!")
+            )
 
             val connection = kognigy.connect(session)
             connection.sendInput("Start!")
@@ -54,7 +68,7 @@ class KognigyTest {
                     logger.info("$event")
                     if (counter.incrementAndGet() < 5) {
                         delay(5000)
-                        connection.sendInput("Some text! ${Random.nextInt()}")
+                        connection.sendInput("Some text! ${Random.nextUInt()}")
                     }
                 }
                 .onCompletion { t ->

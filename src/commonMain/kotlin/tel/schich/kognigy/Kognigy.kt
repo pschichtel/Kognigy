@@ -16,9 +16,9 @@ import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.WebSocketSession
 import io.ktor.websocket.close
-import kotlinx.atomicfu.AtomicInt
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -136,7 +137,8 @@ data class KognigyConnection(
 class Kognigy(
     engineFactory: HttpClientEngineFactory<*>,
     connectTimeoutMillis: Long = 2000,
-    private val pingIntervalMillis: Long = 25000,
+    private val pingIntervalMillis: Long = 5000,
+    private val pingTimeoutMillis: Long = 10000,
     private val userAgent: String = "Kognigy",
 ) {
     @OptIn(ExperimentalSerializationApi::class)
@@ -144,6 +146,8 @@ class Kognigy(
         encodeDefaults = true
         explicitNulls = false
     }
+
+    private val pongTimeout = atomic<Job?>(null)
 
     private val client = HttpClient(engineFactory) {
         install(WebSockets)
@@ -188,15 +192,24 @@ class Kognigy(
 
         val outputs = Channel<OutputEvent>(Channel.UNLIMITED)
 
-        val pingCounter = atomic(0)
-
         if (pingIntervalMillis > 0) {
             timer(pingIntervalMillis, pingIntervalMillis)
                 .onEach {
                     wsSession.send(EngineIoPacket.encode(json, EngineIoPacket.Ping))
-                    if (pingCounter.getAndIncrement() != 0) {
-                        val reason = PingTimeoutException("engine.io pong didn't arrive for $pingIntervalMillis ms!")
-                        wsSession.cancel(reason)
+                    val timeoutMessage = "engine.io pong didn't arrive for $pingTimeoutMillis ms!"
+                    while (true) {
+                        val job = pongTimeout.value
+                        if (job == null) {
+                            val newJob = wsSession.launch {
+                                delay(pingTimeoutMillis)
+                                val reason = PingTimeoutException(timeoutMessage)
+                                wsSession.cancel(reason)
+                            }
+                            if (pongTimeout.compareAndSet(job, newJob)) {
+                                break
+                            }
+                            newJob.cancel()
+                        }
                     }
                 }
                 .launchIn(wsSession)
@@ -205,7 +218,7 @@ class Kognigy(
         wsSession.incoming
             .consumeAsFlow()
             .mapNotNull { frame ->
-                processWebsocketFrame(frame, pingCounter) { wsSession.send(EngineIoPacket.encode(json, it)) }
+                processWebsocketFrame(frame) { wsSession.send(EngineIoPacket.encode(json, it)) }
             }
             .onEach(outputs::send)
             .onCompletion { cause ->
@@ -222,11 +235,10 @@ class Kognigy(
 
     private suspend fun processWebsocketFrame(
         frame: Frame,
-        pingCounter: AtomicInt,
         sink: suspend (EngineIoPacket) -> Unit,
     ): OutputEvent? {
         when (frame) {
-            is Frame.Text -> return processEngineIoPacket(frame, pingCounter, sink)
+            is Frame.Text -> return processEngineIoPacket(frame, sink)
             is Frame.Binary -> logger.warn { "websocket binary, unable to process binary data: $frame" }
             is Frame.Close -> logger.debug { "websocket close: $frame" }
             is Frame.Ping -> logger.debug { "websocket ping: $frame" }
@@ -238,7 +250,6 @@ class Kognigy(
 
     private suspend fun processEngineIoPacket(
         frame: Frame.Text,
-        pingCounter: AtomicInt,
         sink: suspend (EngineIoPacket) -> Unit,
     ): OutputEvent? {
         when (val packet = EngineIoPacket.decode(json, frame)) {
@@ -259,7 +270,11 @@ class Kognigy(
             }
             is EngineIoPacket.Pong -> {
                 logger.debug { "engine.io pong" }
-                pingCounter.decrementAndGet()
+                val timeout = pongTimeout.getAndSet(null)
+                if (timeout != null) {
+                    logger.debug { "engine.io ping timeout cancelled!" }
+                    timeout.cancel()
+                }
             }
             is EngineIoPacket.Upgrade -> logger.debug {
                 "engine.io upgrade"

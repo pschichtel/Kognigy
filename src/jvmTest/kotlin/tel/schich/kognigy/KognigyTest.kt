@@ -19,7 +19,6 @@ import tel.schich.kognigy.protocol.ChannelName
 import tel.schich.kognigy.protocol.CognigyEvent
 import tel.schich.kognigy.protocol.EndpointToken
 import tel.schich.kognigy.protocol.SessionId
-import tel.schich.kognigy.protocol.Source
 import tel.schich.kognigy.protocol.UserId
 import java.util.UUID
 import kotlin.random.Random
@@ -53,7 +52,6 @@ class KognigyTest {
                 EndpointToken(token),
                 UserId("kognigy-integration-test-${Random.nextUInt()}"),
                 ChannelName("kognigy"),
-                Source("kognigy!")
             )
 
             val connection = kognigy.connect(session)

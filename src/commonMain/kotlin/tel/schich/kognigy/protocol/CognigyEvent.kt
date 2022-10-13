@@ -49,7 +49,7 @@ sealed interface CognigyEvent {
         val data: JsonElement? = null,
         val traceId: String,
         val disableSensitiveLogging: Boolean,
-        val source: String,
+        val source: Source,
     )
 
     @Serializable

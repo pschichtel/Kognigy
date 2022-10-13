@@ -30,7 +30,9 @@ value class ChannelName(val value: String)
 value class Source(val value: String) {
     companion object {
         val Device = Source("device")
+        val User = Source("user")
         val Bot = Source("bot")
+        val Agent = Source("agent")
     }
 }
 

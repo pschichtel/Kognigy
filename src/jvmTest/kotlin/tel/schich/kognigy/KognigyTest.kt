@@ -6,7 +6,7 @@ import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.flow.filterNot
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
@@ -55,18 +55,28 @@ class KognigyTest {
             )
 
             val connection = kognigy.connect(session)
-            connection.sendInput("Start!")
+
+            suspend fun sendInput(input: String) {
+                logger.info { "Input: $input" }
+                connection.sendInput(input)
+            }
+
+            sendInput("Start!")
 
             val counter = atomic(0)
             connection.output
                 .consumeAsFlow()
-                .filterNot { it is CognigyEvent.FinalPing }
+                .onEach { event ->
+                    logger.info("Received Event: $event")
+                }
+                .filterIsInstance<CognigyEvent.Output.Message>()
                 .take(5)
                 .onEach { event ->
-                    logger.info("$event")
+                    logger.info { "Received Text: <${event.data.text}>" }
                     if (counter.incrementAndGet() < 5) {
+                        logger.info { "delay" }
                         delay(5000)
-                        connection.sendInput("Some text! ${Random.nextUInt()}")
+                        sendInput("Some text! ${Random.nextUInt()}")
                     }
                 }
                 .onCompletion { t ->

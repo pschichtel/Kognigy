@@ -2,6 +2,7 @@ package tel.schich.kognigy
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngineFactory
+import io.ktor.client.engine.ProxyConfig
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.UserAgent
 import io.ktor.client.plugins.websocket.WebSockets
@@ -145,6 +146,7 @@ class Kognigy(
     private val pingIntervalMillis: Long = 5000,
     private val pingTimeoutMillis: Long = 10000,
     private val userAgent: String = "Kognigy",
+    private val proxyConfig: ProxyConfig? = null,
 ) {
     @OptIn(ExperimentalSerializationApi::class)
     private val json = Json {
@@ -155,6 +157,9 @@ class Kognigy(
     private val pongTimeout = atomic<Job?>(null)
 
     private val client = HttpClient(engineFactory) {
+        engine {
+            proxy = proxyConfig
+        }
         install(WebSockets)
         install(HttpTimeout) {
             this.connectTimeoutMillis = connectTimeoutMillis

@@ -1,6 +1,8 @@
 package tel.schich.kognigy
 
-import io.ktor.client.engine.cio.*
+import io.ktor.client.engine.ProxyBuilder
+import io.ktor.client.engine.http
+import io.ktor.client.engine.java.Java
 import io.ktor.http.Url
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
@@ -44,7 +46,9 @@ class KognigyTest {
             val uri = Url(System.getenv(ENDPOINT_URL_ENV))
             val token = System.getenv(ENDPOINT_TOKEN_ENV)
 
-            val kognigy = Kognigy(CIO, pingIntervalMillis = 700, pingTimeoutMillis = 50)
+            val proxy = System.getenv("COGNIGY_HTTP_PROXY")?.ifBlank { null }?.let { ProxyBuilder.http(it) }
+
+            val kognigy = Kognigy(Java, pingIntervalMillis = 700, pingTimeoutMillis = 50, proxyConfig = proxy)
 
             val session = KognigySession(
                 SessionId("${UUID.randomUUID()}"),
@@ -53,6 +57,8 @@ class KognigyTest {
                 UserId("kognigy-integration-test-${Random.nextUInt()}"),
                 ChannelName("kognigy"),
             )
+
+            logger.info { "Session: $session" }
 
             val connection = kognigy.connect(session)
 
@@ -67,7 +73,7 @@ class KognigyTest {
             connection.output
                 .consumeAsFlow()
                 .onEach { event ->
-                    logger.info("Received Event: $event")
+                    logger.info { "Received Event: $event" }
                 }
                 .filterIsInstance<CognigyEvent.Output.Message>()
                 .take(5)

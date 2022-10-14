@@ -135,7 +135,7 @@ data class KognigyConnection(
         }
     }
 
-    suspend fun close(closeReason: CloseReason = CloseReason(CloseReason.Codes.NORMAL, "")) {
+    suspend fun close(closeReason: CloseReason = CloseReason(CloseReason.Codes.GOING_AWAY, "")) {
         wsSession.close(closeReason)
     }
 }
@@ -196,6 +196,7 @@ class Kognigy(
                 host = url.host
                 port = url.port
                 encodedPath = "/socket.io/"
+                parameter("EIO", "3")
                 parameter("transport", "websocket")
             }
         }

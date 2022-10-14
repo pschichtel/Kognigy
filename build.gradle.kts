@@ -90,7 +90,7 @@ kotlin {
             dependsOn(commonTest)
             dependencies {
                 val junitVersion = "5.9.1"
-                implementation("io.ktor:ktor-client-cio:$ktorVersion")
+                implementation("io.ktor:ktor-client-java:$ktorVersion")
                 implementation(kotlin("test"))
                 implementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
                 implementation("org.junit.jupiter:junit-jupiter-engine:$junitVersion")

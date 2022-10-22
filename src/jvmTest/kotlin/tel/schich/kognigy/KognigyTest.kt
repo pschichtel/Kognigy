@@ -48,7 +48,7 @@ class KognigyTest {
 
             val proxy = System.getenv("COGNIGY_HTTP_PROXY")?.ifBlank { null }?.let { ProxyBuilder.http(it) }
 
-            val kognigy = Kognigy(Java, pingIntervalMillis = 700, pingTimeoutMillis = 50, proxyConfig = proxy)
+            val kognigy = Kognigy(Java, proxyConfig = proxy)
 
             val session = KognigySession(
                 SessionId("${UUID.randomUUID()}"),

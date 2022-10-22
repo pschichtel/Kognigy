@@ -150,6 +150,7 @@ class Kognigy(
     private val json = Json {
         encodeDefaults = true
         explicitNulls = false
+        ignoreUnknownKeys = true
     }
 
     private val pingTimer = atomic<Job?>(null)
@@ -267,7 +268,7 @@ class Kognigy(
     ): OutputEvent? {
         when (val packet = EngineIoPacket.decode(json, frame)) {
             is EngineIoPacket.Open -> {
-                setupPing(packet.pingInterval.toLong(), packet.pingTimeout.toLong())
+                setupPing(packet.pingIntervalMillis, packet.pingTimeoutMillis)
                 logger.debug { "engine.io open: $packet" }
             }
             is EngineIoPacket.Close -> logger.debug {
@@ -296,7 +297,7 @@ class Kognigy(
             is EngineIoPacket.Noop -> logger.debug {
                 "engine.io noop"
             }
-            is EngineIoPacket.Error -> logger.debug(packet.t) {
+            is EngineIoPacket.Error -> logger.error(packet.t) {
                 "received broken engine.io packet: ${packet.reason}, ${packet.data}"
             }
         }

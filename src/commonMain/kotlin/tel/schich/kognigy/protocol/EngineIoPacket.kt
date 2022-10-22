@@ -2,6 +2,7 @@ package tel.schich.kognigy.protocol
 
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
@@ -15,10 +16,15 @@ import tel.schich.kognigy.Data
 sealed interface EngineIoPacket {
     @Serializable
     data class Open(
-        val sid: String,
+        @SerialName("sid")
+        val sessionId: String,
         val upgrades: List<String>,
-        val pingInterval: Int,
-        val pingTimeout: Int,
+        @SerialName("pingInterval")
+        val pingIntervalMillis: Long,
+        @SerialName("pingTimeout")
+        val pingTimeoutMillis: Long,
+        @SerialName("maxPayload")
+        val maxPayloadBytes: Long,
     ) : EngineIoPacket
 
     object Close : EngineIoPacket

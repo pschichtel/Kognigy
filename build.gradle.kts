@@ -17,8 +17,8 @@ version = "3.0.0"
 
 val ktorVersion = "2.1.2"
 val coroutinesVersion = "1.6.4"
-val serializationVersion = "1.4.0"
-val atomicfuVersion = "0.18.3"
+val serializationVersion = "1.4.1"
+val atomicfuVersion = "0.18.4"
 
 
 tasks.withType<Test> {

@@ -256,7 +256,7 @@ class Kognigy(
             is Frame.Close -> logger.debug { "websocket close: $frame" }
             is Frame.Ping -> logger.debug { "websocket ping: $frame" }
             is Frame.Pong -> logger.debug { "websocket pong: $frame" }
-            else -> logger.debug { "unknown websocket frame: $frame" }
+            else -> logger.error { "unknown websocket frame: $frame" }
         }
         return null
     }
@@ -329,7 +329,7 @@ class Kognigy(
             is SocketIoPacket.BinaryAcknowledge -> logger.debug {
                 "socket.io binary ack: id=${packet.acknowledgeId}, data=${packet.data?.toHexString()}"
             }
-            is SocketIoPacket.BrokenPacket -> logger.warn(packet.t) {
+            is SocketIoPacket.BrokenPacket -> logger.error(packet.t) {
                 "received broken socket.io packet: ${packet.reason}, ${packet.packet}"
             }
         }

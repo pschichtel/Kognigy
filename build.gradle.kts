@@ -15,10 +15,10 @@ plugins {
 group = "tel.schich"
 version = "3.0.1-SNAPSHOT"
 
-val ktorVersion = "2.1.2"
+val ktorVersion = "2.2.1"
 val coroutinesVersion = "1.6.4"
 val serializationVersion = "1.4.1"
-val atomicfuVersion = "0.18.4"
+val atomicfuVersion = "0.18.5"
 
 
 tasks.withType<Test> {

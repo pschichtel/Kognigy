@@ -1,4 +1,4 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
 
 plugins {
     signing
@@ -15,21 +15,14 @@ plugins {
 group = "tel.schich"
 version = "3.0.1-SNAPSHOT"
 
-val ktorVersion = "2.2.1"
+val ktorVersion = "2.2.2"
 val coroutinesVersion = "1.6.4"
 val serializationVersion = "1.4.1"
-val atomicfuVersion = "0.18.5"
+val atomicfuVersion = "0.19.0"
 
 
 tasks.withType<Test> {
     useJUnitPlatform()
-}
-
-tasks.withType<KotlinCompile> {
-    kotlinOptions {
-        jvmTarget = "1.8"
-        freeCompilerArgs = listOf("-progressive")
-    }
 }
 
 tasks.withType<Jar>().configureEach {
@@ -52,12 +45,13 @@ kotlin {
     jvm {
         withJava()
         compilations.all {
-            kotlinOptions {
-                jvmTarget = "1.8"
+            compilerOptions.configure {
+                jvmTarget.set(JVM_1_8)
+                freeCompilerArgs.add("-progressive")
             }
         }
     }
-    js {
+    js(IR) {
         browser {
             binaries.executable()
             testTask {
@@ -73,7 +67,7 @@ kotlin {
                 implementation("io.ktor:ktor-client-websockets:$ktorVersion")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
                 api("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
-                implementation("io.github.microutils:kotlin-logging:2.1.23")
+                implementation("io.github.microutils:kotlin-logging:3.0.4")
                 implementation("org.jetbrains.kotlinx:atomicfu:$atomicfuVersion")
             }
         }

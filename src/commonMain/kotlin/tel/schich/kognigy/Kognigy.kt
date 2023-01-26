@@ -131,6 +131,9 @@ data class KognigyConnection(
     }
 
     suspend fun send(event: InputEvent, flush: Boolean = false) {
+        if (!wsSession.isActive) {
+            error("Not connected!")
+        }
         wsSession.send(encoder(event))
         if (flush) {
             wsSession.flush()

@@ -185,8 +185,8 @@ class Kognigy(
     suspend fun connect(session: KognigySession): KognigyConnection {
         val url = session.endpoint
 
-        if (!(url.protocol == URLProtocol.HTTP || url.protocol == URLProtocol.HTTPS)) {
-            throw IllegalArgumentException("Protocol must be http or https")
+        require(url.protocol == URLProtocol.HTTP || url.protocol == URLProtocol.HTTPS) {
+            "Protocol must be http or https"
         }
 
         fun encodeInput(event: InputEvent): Frame =

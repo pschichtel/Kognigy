@@ -12,7 +12,6 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import tel.schich.kognigy.Data
 
 /**
  * Based on: [github.com/socketio/socket.io-protocol](https://github.com/socketio/socket.io-protocol)

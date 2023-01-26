@@ -10,18 +10,13 @@ import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.parameter
 import io.ktor.http.HttpMethod
 import io.ktor.http.URLProtocol
-import io.ktor.http.Url
 import io.ktor.http.encodedPath
 import io.ktor.http.isSecure
-import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
-import io.ktor.websocket.WebSocketSession
-import io.ktor.websocket.close
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.launchIn
@@ -30,112 +25,16 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.descriptors.PrimitiveKind
-import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
-import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import mu.KotlinLogging
-import tel.schich.kognigy.protocol.ChannelName
 import tel.schich.kognigy.protocol.CognigyEvent
 import tel.schich.kognigy.protocol.CognigyEvent.InputEvent
 import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
-import tel.schich.kognigy.protocol.EndpointToken
 import tel.schich.kognigy.protocol.EngineIoPacket
-import tel.schich.kognigy.protocol.SessionId
+import tel.schich.kognigy.protocol.PingTimeoutException
 import tel.schich.kognigy.protocol.SocketIoPacket
-import tel.schich.kognigy.protocol.Source
-import tel.schich.kognigy.protocol.UserId
-
-class Data(val data: ByteArray) {
-    fun toHexString() = data.joinToString(" ") { byte ->
-        byte.toUByte().toString(radix = 16).uppercase().padStart(length = 2, padChar = '0')
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        val otherData = (other as? Data)?.data ?: return false
-
-        return data.contentEquals(otherData)
-    }
-
-    override fun hashCode(): Int {
-        return data.contentHashCode()
-    }
-}
-
-class PingTimeoutException(message: String) : CancellationException(message)
 
 private val logger = KotlinLogging.logger {}
-
-@Serializable
-data class KognigySession(
-    val id: SessionId,
-    @Serializable(with = UrlSerializer::class)
-    val endpoint: Url,
-    val endpointToken: EndpointToken,
-    val userId: UserId,
-    val channelName: ChannelName? = null,
-    val source: Source = Source.Device,
-    val passthroughIp: String? = null,
-)
-
-private class UrlSerializer : KSerializer<Url> {
-    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("Url", PrimitiveKind.STRING)
-    override fun deserialize(decoder: Decoder): Url = Url(decoder.decodeString())
-    override fun serialize(encoder: Encoder, value: Url) = encoder.encodeString(value.toString())
-}
-
-data class KognigyConnection(
-    val session: KognigySession,
-    val output: ReceiveChannel<OutputEvent>,
-    private val encoder: (InputEvent) -> Frame,
-    private val wsSession: WebSocketSession,
-) {
-    @Suppress("LongParameterList")
-    suspend fun sendInput(
-        text: String,
-        data: JsonElement? = null,
-        reloadFlow: Boolean = false,
-        resetFlow: Boolean = false,
-        resetState: Boolean = false,
-        resetContext: Boolean = false,
-        flush: Boolean = false,
-    ) {
-        val event = CognigyEvent.ProcessInput(
-            urlToken = session.endpointToken,
-            userId = session.userId,
-            sessionId = session.id,
-            channel = session.channelName,
-            source = session.source,
-            passthroughIp = session.passthroughIp,
-            reloadFlow = reloadFlow,
-            resetFlow = resetFlow,
-            resetState = resetState,
-            resetContext = resetContext,
-            data = data,
-            text = text,
-        )
-        send(event, flush)
-    }
-
-    suspend fun send(event: InputEvent, flush: Boolean = false) {
-        wsSession.send(encoder(event))
-        if (flush) {
-            wsSession.flush()
-        }
-    }
-
-    suspend fun close(closeReason: CloseReason = CloseReason(CloseReason.Codes.GOING_AWAY, "")) {
-        wsSession.close(closeReason)
-    }
-}
 
 class Kognigy(
     engineFactory: HttpClientEngineFactory<*>,

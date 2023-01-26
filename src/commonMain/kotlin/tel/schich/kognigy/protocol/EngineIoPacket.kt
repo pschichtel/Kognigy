@@ -2,13 +2,34 @@ package tel.schich.kognigy.protocol
 
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import tel.schich.kognigy.Data
+
+class PingTimeoutException(message: String) : CancellationException(message)
+
+class Data(val data: ByteArray) {
+    fun toHexString() = data.joinToString(" ") { byte ->
+        byte.toUByte().toString(radix = 16).uppercase().padStart(length = 2, padChar = '0')
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
+        val otherData = (other as? Data)?.data ?: return false
+
+        return data.contentEquals(otherData)
+    }
+
+    override fun hashCode(): Int {
+        return data.contentHashCode()
+    }
+}
 
 /**
  * Based on: [github.com/socketio/engine.io-protocol](https://github.com/socketio/engine.io-protocol)

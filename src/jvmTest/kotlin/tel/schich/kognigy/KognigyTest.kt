@@ -4,7 +4,6 @@ import io.ktor.client.engine.ProxyBuilder
 import io.ktor.client.engine.http
 import io.ktor.client.engine.java.Java
 import io.ktor.http.Url
-import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.consumeAsFlow
@@ -69,7 +68,7 @@ class KognigyTest {
 
             sendInput("Start!")
 
-            val counter = atomic(0)
+            var counter = 0
             connection.output
                 .consumeAsFlow()
                 .onEach { event ->
@@ -79,7 +78,7 @@ class KognigyTest {
                 .take(5)
                 .onEach { event ->
                     logger.info { "Received Text: <${event.data.text}>" }
-                    if (counter.incrementAndGet() < 5) {
+                    if (counter++ < 5) {
                         logger.info { "delay" }
                         delay(5000)
                         sendInput("Some text! ${Random.nextUInt()}")
@@ -97,7 +96,7 @@ class KognigyTest {
 
             connection.close()
 
-            assertEquals(5, counter.value, "should take exactly 5 events")
+            assertEquals(5, counter, "should take exactly 5 events")
         }
     }
 

@@ -6,7 +6,6 @@ plugins {
     `maven-publish`
     kotlin("multiplatform")
     kotlin("plugin.serialization")
-    kotlin("plugin.atomicfu")
     id("org.jetbrains.dokka")
     id("io.github.gradle-nexus.publish-plugin")
     id("io.gitlab.arturbosch.detekt")
@@ -18,7 +17,6 @@ version = "3.0.1-SNAPSHOT"
 val ktorVersion = "2.2.2"
 val coroutinesVersion = "1.6.4"
 val serializationVersion = "1.4.1"
-val atomicfuVersion = "0.19.0"
 
 
 tasks.withType<Test> {
@@ -68,7 +66,6 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
                 api("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
                 implementation("io.github.microutils:kotlin-logging:3.0.4")
-                implementation("org.jetbrains.kotlinx:atomicfu:$atomicfuVersion")
             }
         }
 

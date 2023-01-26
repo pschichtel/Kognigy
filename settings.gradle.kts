@@ -11,7 +11,6 @@ pluginManagement {
     plugins {
         kotlin("multiplatform") version(kotlinVersion)
         kotlin("plugin.serialization") version(kotlinVersion)
-        kotlin("plugin.atomicfu") version(kotlinVersion)
         id("org.jetbrains.dokka") version(dokkaVersion)
         id("io.github.gradle-nexus.publish-plugin") version(nexusPublishingVersion)
         id("io.gitlab.arturbosch.detekt") version(detektVersion)

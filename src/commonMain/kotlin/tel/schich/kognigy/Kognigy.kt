@@ -19,6 +19,7 @@ import io.ktor.websocket.WebSocketSession
 import io.ktor.websocket.close
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
@@ -208,17 +210,21 @@ class Kognigy(
                 .onEach {
                     wsSession.send(EngineIoPacket.encode(json, EngineIoPacket.Ping))
                     val timeoutMessage = "engine.io pong didn't arrive for $timeoutMillis ms!"
+                    @Suppress("LoopWithTooManyJumpStatements")
                     while (true) {
-                        val job = pongTimeout.value
-                        if (job == null) {
-                            val newJob = wsSession.launch {
-                                delay(timeoutMillis)
-                                val reason = PingTimeoutException(timeoutMessage)
-                                wsSession.cancel(reason)
-                            }
-                            if (pongTimeout.compareAndSet(job, newJob)) {
-                                break
-                            }
+                        if (pongTimeout.value != null) {
+                            break
+                        }
+
+                        val newJob = wsSession.launch(start = CoroutineStart.LAZY) {
+                            delay(timeoutMillis)
+                            val reason = PingTimeoutException(timeoutMessage)
+                            wsSession.cancel(reason)
+                        }
+                        if (pongTimeout.compareAndSet(null, newJob)) {
+                            newJob.start()
+                            break
+                        } else {
                             newJob.cancel()
                         }
                     }

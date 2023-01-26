@@ -1,5 +1,4 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
 
 plugins {
     signing

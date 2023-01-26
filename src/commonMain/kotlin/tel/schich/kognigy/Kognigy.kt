@@ -34,8 +34,6 @@ import tel.schich.kognigy.protocol.EngineIoPacket
 import tel.schich.kognigy.protocol.PingTimeoutException
 import tel.schich.kognigy.protocol.SocketIoPacket
 
-private val logger = KotlinLogging.logger {}
-
 class Kognigy(
     engineFactory: HttpClientEngineFactory<*>,
     connectTimeoutMillis: Long = 2000,
@@ -220,5 +218,9 @@ class Kognigy(
             }
         }
         return null
+    }
+
+    private companion object {
+        private val logger = KotlinLogging.logger("Kognigy")
     }
 }

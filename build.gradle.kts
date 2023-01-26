@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
 
 plugins {
@@ -44,7 +45,7 @@ kotlin {
         withJava()
         compilations.all {
             compilerOptions.configure {
-                jvmTarget.set(JVM_1_8)
+                jvmTarget.set(JVM_11)
                 freeCompilerArgs.add("-progressive")
             }
         }

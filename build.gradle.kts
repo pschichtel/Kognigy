@@ -88,7 +88,7 @@ kotlin {
                 implementation(kotlin("test"))
                 implementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
                 implementation("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
-                implementation("org.slf4j:slf4j-simple:1.7.36")
+                implementation("org.slf4j:slf4j-simple:2.0.6")
             }
         }
     }

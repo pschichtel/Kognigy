@@ -14,9 +14,9 @@ plugins {
 group = "tel.schich"
 version = "3.0.2-SNAPSHOT"
 
-val ktorVersion = "2.2.4"
-val coroutinesVersion = "1.6.4"
-val serializationVersion = "1.5.0"
+val ktorVersion = "2.3.0"
+val coroutinesVersion = "1.7.1"
+val serializationVersion = "1.5.1"
 
 
 tasks.withType<Test> {
@@ -134,7 +134,7 @@ signing {
 }
 
 nexusPublishing {
-    repositories {
+    this.repositories {
         sonatype()
     }
 }

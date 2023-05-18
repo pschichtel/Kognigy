@@ -123,6 +123,8 @@ publishing {
                     developerConnection.set("scm:git:git@github.com:pschichtel/kognigy")
                 }
             }
+        }
+        publications.named("jvm", MavenPublication::class) {
             artifact(javadocJar)
         }
     }

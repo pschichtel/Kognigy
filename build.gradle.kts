@@ -14,9 +14,9 @@ plugins {
 group = "tel.schich"
 version = "3.0.3-SNAPSHOT"
 
-val ktorVersion = "2.3.0"
-val coroutinesVersion = "1.7.1"
-val serializationVersion = "1.5.1"
+val ktorVersion = "2.3.4"
+val coroutinesVersion = "1.7.3"
+val serializationVersion = "1.6.0"
 
 
 tasks.withType<Test> {
@@ -36,7 +36,10 @@ repositories {
 }
 
 java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of("11"))
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of("11"))
+        vendor.set(JvmVendorSpec.ADOPTIUM)
+    }
 }
 
 kotlin {

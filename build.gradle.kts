@@ -14,9 +14,9 @@ plugins {
 group = "tel.schich"
 version = "3.0.4-SNAPSHOT"
 
-val ktorVersion = "2.3.4"
+val ktorVersion = "2.3.7"
 val coroutinesVersion = "1.7.3"
-val serializationVersion = "1.6.0"
+val serializationVersion = "1.6.1"
 
 
 tasks.withType<Test> {
@@ -73,7 +73,6 @@ kotlin {
         }
 
         val commonTest by getting {
-            dependsOn(commonMain)
             dependencies {
                 implementation(kotlin("test-common"))
                 implementation(kotlin("test-annotations-common"))
@@ -81,9 +80,8 @@ kotlin {
         }
 
         getByName("jvmTest") {
-            dependsOn(commonTest)
             dependencies {
-                val junitVersion = "5.9.1"
+                val junitVersion = "5.9.2"
                 implementation("io.ktor:ktor-client-java:$ktorVersion")
                 implementation(kotlin("test"))
                 implementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")

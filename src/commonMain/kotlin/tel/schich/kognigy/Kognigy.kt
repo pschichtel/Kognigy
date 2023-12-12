@@ -115,7 +115,6 @@ class Kognigy(
             .consumeAsFlow()
             .mapNotNull { frame ->
                 processWebsocketFrame(frame, ::setupPingTimer, ::onPong) {
-                    logger.info { "Sending protocol message: $it" }
                     wsSession.send(EngineIoPacket.encode(json, it))
                 }
             }

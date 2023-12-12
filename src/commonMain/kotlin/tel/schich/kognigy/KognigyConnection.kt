@@ -6,7 +6,6 @@ import io.ktor.websocket.WebSocketSession
 import io.ktor.websocket.close
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.serialization.json.JsonElement
-import mu.KotlinLogging
 import tel.schich.kognigy.protocol.CognigyEvent
 
 data class KognigyConnection(
@@ -43,13 +42,7 @@ data class KognigyConnection(
     }
 
     suspend fun send(event: CognigyEvent.InputEvent, flush: Boolean = false) {
-        val encodedEvent = encoder(event)
-
-        logger.info {
-            val prefix = (event as? CognigyEvent.ProcessInput)?.sessionId?.value?.let { "$it - " }
-            "${prefix}Sending cognigy event: ${encodedEvent.data.map { it.toInt().toChar() }.joinToString("")}"
-        }
-        wsSession.send(encodedEvent)
+        wsSession.send(encoder(event))
         if (flush) {
             wsSession.flush()
         }
@@ -57,9 +50,5 @@ data class KognigyConnection(
 
     suspend fun close(closeReason: CloseReason = CloseReason(CloseReason.Codes.GOING_AWAY, "")) {
         wsSession.close(closeReason)
-    }
-
-    private companion object {
-        private val logger = KotlinLogging.logger("KognigyConnection")
     }
 }

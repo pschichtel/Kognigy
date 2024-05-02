@@ -81,6 +81,10 @@ class Kognigy(
                 encodedPath = "/socket.io/"
                 parameter("EIO", "3")
                 parameter("transport", "websocket")
+                parameter("urlToken", session.endpointToken.value)
+                parameter("sessionId", session.id.value)
+                parameter("userId", session.userId.value)
+                parameter("testMode", session.testMode.toString())
             }
         }
 

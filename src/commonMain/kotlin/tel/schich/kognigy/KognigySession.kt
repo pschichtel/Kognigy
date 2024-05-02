@@ -18,4 +18,5 @@ data class KognigySession(
     val channelName: ChannelName? = null,
     val source: Source = Source.Device,
     val passthroughIp: String? = null,
+    val testMode: Boolean = false,
 )

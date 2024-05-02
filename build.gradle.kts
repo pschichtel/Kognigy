@@ -14,9 +14,9 @@ plugins {
 group = "tel.schich"
 version = "3.0.5-SNAPSHOT"
 
-val ktorVersion = "2.3.7"
-val coroutinesVersion = "1.7.3"
-val serializationVersion = "1.6.1"
+val ktorVersion = "2.3.10"
+val coroutinesVersion = "1.8.0"
+val serializationVersion = "1.6.3"
 
 
 tasks.withType<Test> {

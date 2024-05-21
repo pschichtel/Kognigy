@@ -14,8 +14,8 @@ plugins {
 group = "tel.schich"
 version = "3.1.1-SNAPSHOT"
 
-val ktorVersion = "2.3.10"
-val coroutinesVersion = "1.8.0"
+val ktorVersion = "2.3.11"
+val coroutinesVersion = "1.8.1"
 val serializationVersion = "1.6.3"
 
 
@@ -68,7 +68,7 @@ kotlin {
                 implementation("io.ktor:ktor-client-websockets:$ktorVersion")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
                 api("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
-                implementation("io.github.microutils:kotlin-logging:3.0.4")
+                implementation("io.github.microutils:kotlin-logging:3.0.5")
             }
         }
 
@@ -81,12 +81,12 @@ kotlin {
 
         getByName("jvmTest") {
             dependencies {
-                val junitVersion = "5.9.2"
+                val junitVersion = "5.10.2"
                 implementation("io.ktor:ktor-client-java:$ktorVersion")
                 implementation(kotlin("test"))
                 implementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
                 implementation("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
-                implementation("org.slf4j:slf4j-simple:2.0.6")
+                implementation("org.slf4j:slf4j-simple:2.0.13")
             }
         }
     }

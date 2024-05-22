@@ -5,6 +5,7 @@ import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.engine.ProxyConfig
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.UserAgent
+import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.parameter
@@ -12,31 +13,31 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.URLProtocol
 import io.ktor.http.encodedPath
 import io.ktor.http.isSecure
+import io.ktor.utils.io.core.String
 import io.ktor.websocket.Frame
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import mu.KotlinLogging
 import tel.schich.kognigy.protocol.CognigyEvent
-import tel.schich.kognigy.protocol.CognigyEvent.InputEvent
 import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
 import tel.schich.kognigy.protocol.EngineIoPacket
-import tel.schich.kognigy.protocol.PingTimeoutException
 import tel.schich.kognigy.protocol.SocketIoPacket
 
 class Kognigy(
     engineFactory: HttpClientEngineFactory<*>,
-    connectTimeoutMillis: Long = 2000,
+    private val connectTimeoutMillis: Long = 2000,
     private val userAgent: String = "Kognigy",
     private val proxyConfig: ProxyConfig? = null,
 ) {
@@ -67,9 +68,6 @@ class Kognigy(
             "Protocol must be http or https"
         }
 
-        fun encodeInput(event: InputEvent): Frame =
-            EngineIoPacket.encode(json, SocketIoPacket.encode(json, CognigyEvent.encode(json, event)))
-
         val wsSession = client.webSocketSession {
             method = HttpMethod.Get
             url {
@@ -88,39 +86,14 @@ class Kognigy(
             }
         }
 
-        val outputs = Channel<OutputEvent>(Channel.UNLIMITED)
-        var pingTimer: Job? = null
-        var pongTimeout: Job? = null
-
-        suspend fun setupPingTimer(intervalMillis: Long, timeoutMillis: Long) {
-            pingTimer?.cancel()
-            pingTimer = wsSession.launch {
-                while (true) {
-                    delay(intervalMillis)
-                    wsSession.send(EngineIoPacket.encode(json, EngineIoPacket.Ping))
-                    val timeoutMessage = "engine.io pong didn't arrive for $timeoutMillis ms!"
-                    if (pongTimeout == null) {
-                        pongTimeout = wsSession.launch {
-                            delay(timeoutMillis)
-                            val reason = PingTimeoutException(timeoutMessage)
-                            wsSession.cancel(reason)
-                        }
-                    }
-                }
-            }
-        }
-
-        fun onPong() {
-            pongTimeout?.cancel()
-            pongTimeout = null
-        }
+        val outputs = Channel<OutputEvent>(Channel.RENDEZVOUS)
+        val onSocketIoConnected = CompletableDeferred<Unit>()
+        val connection = KognigyConnection(session, outputs, wsSession, json, onSocketIoConnected)
 
         wsSession.incoming
             .consumeAsFlow()
             .mapNotNull { frame ->
-                processWebsocketFrame(frame, ::setupPingTimer, ::onPong) {
-                    wsSession.send(EngineIoPacket.encode(json, it))
-                }
+                processWebsocketFrame(frame, connection)
             }
             .onEach(outputs::send)
             .onCompletion { cause ->
@@ -132,17 +105,25 @@ class Kognigy(
             }
             .launchIn(wsSession)
 
-        return KognigyConnection(session, outputs, ::encodeInput, wsSession)
+        try {
+            withTimeout(connectTimeoutMillis) {
+                onSocketIoConnected.join()
+            }
+        } catch (e: TimeoutCancellationException) {
+            wsSession.cancel(e)
+            throw e
+        }
+
+        return connection
     }
 
     private suspend fun processWebsocketFrame(
         frame: Frame,
-        setupPing: suspend (Long, Long) -> Unit,
-        onPong: () -> Unit,
-        sink: suspend (EngineIoPacket) -> Unit,
+        connection: KognigyConnection,
     ): OutputEvent? {
+        logger.trace { "Frame: " + String(frame.data) }
         when (frame) {
-            is Frame.Text -> return processEngineIoPacket(frame, setupPing, onPong, sink)
+            is Frame.Text -> return processEngineIoPacket(frame, connection)
             is Frame.Binary -> logger.warn { "websocket binary, unable to process binary data: $frame" }
             is Frame.Close -> logger.debug { "websocket close: $frame" }
             is Frame.Ping -> logger.debug { "websocket ping: $frame" }
@@ -154,13 +135,13 @@ class Kognigy(
 
     private suspend fun processEngineIoPacket(
         frame: Frame.Text,
-        setupPing: suspend (Long, Long) -> Unit,
-        onPong: () -> Unit,
-        sink: suspend (EngineIoPacket) -> Unit,
+        connection: KognigyConnection,
     ): OutputEvent? {
-        when (val packet = EngineIoPacket.decode(json, frame)) {
+        val packet = EngineIoPacket.decode(json, frame)
+        logger.trace { "EngineIO packet: $packet" }
+        when (packet) {
             is EngineIoPacket.Open -> {
-                setupPing(packet.pingIntervalMillis, packet.pingTimeoutMillis)
+                connection.setupPingTimer(packet.pingIntervalMillis, packet.pingTimeoutMillis)
                 logger.debug { "engine.io open: $packet" }
             }
             is EngineIoPacket.Close -> logger.debug {
@@ -170,14 +151,14 @@ class Kognigy(
                 "engine.io binary frame"
             }
             is EngineIoPacket.TextMessage -> {
-                return processSocketIoPacket(packet)
+                return processSocketIoPacket(packet, connection)
             }
             is EngineIoPacket.Ping -> {
-                sink(EngineIoPacket.Pong)
+                connection.send(EngineIoPacket.Pong)
             }
             is EngineIoPacket.Pong -> {
                 logger.debug { "engine.io pong" }
-                onPong()
+                connection.onPong()
             }
             is EngineIoPacket.Upgrade -> logger.debug {
                 "engine.io upgrade"
@@ -192,10 +173,16 @@ class Kognigy(
         return null
     }
 
-    private fun processSocketIoPacket(engineIoPacket: EngineIoPacket.TextMessage): OutputEvent? {
-        when (val packet = SocketIoPacket.decode(json, engineIoPacket)) {
-            is SocketIoPacket.Connect -> logger.debug {
-                "socket.io connect: ${packet.data}"
+    private fun processSocketIoPacket(
+        engineIoPacket: EngineIoPacket.TextMessage,
+        connection: KognigyConnection,
+    ): OutputEvent? {
+        val packet = SocketIoPacket.decode(json, engineIoPacket)
+        logger.trace { "SocketIO packet: $packet" }
+        when (packet) {
+            is SocketIoPacket.Connect -> {
+                logger.debug { "socket.io connect: ${packet.data}" }
+                connection.onConnected()
             }
             is SocketIoPacket.ConnectError -> logger.debug {
                 "socket.io connectError: ${packet.data}"

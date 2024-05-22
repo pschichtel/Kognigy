@@ -3,7 +3,9 @@ package tel.schich.kognigy
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.WebSocketSession
 import io.ktor.websocket.close
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -23,6 +25,8 @@ class KognigyConnection(
     private val json: Json,
     private val socketIoConnected: CompletableDeferred<Unit>,
 ) {
+    internal val coroutineScope = CoroutineScope(Job())
+
     private var pingTimer: Job? = null
     private var pongTimeout: Job? = null
 
@@ -94,5 +98,9 @@ class KognigyConnection(
 
     suspend fun close(closeReason: CloseReason = CloseReason(CloseReason.Codes.GOING_AWAY, "")) {
         wsSession.close(closeReason)
+    }
+
+    fun cancel(cause: CancellationException? = null) {
+        coroutineScope.cancel()
     }
 }

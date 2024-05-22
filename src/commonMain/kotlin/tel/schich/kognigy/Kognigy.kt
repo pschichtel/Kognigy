@@ -5,7 +5,6 @@ import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.engine.ProxyConfig
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.UserAgent
-import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.parameter
@@ -17,15 +16,11 @@ import io.ktor.utils.io.core.String
 import io.ktor.websocket.Frame
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.mapNotNull
-import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
@@ -90,27 +85,44 @@ class Kognigy(
         val onSocketIoConnected = CompletableDeferred<Unit>()
         val connection = KognigyConnection(session, outputs, wsSession, json, onSocketIoConnected)
 
-        wsSession.incoming
-            .consumeAsFlow()
-            .mapNotNull { frame ->
-                processWebsocketFrame(frame, connection)
-            }
-            .onEach(outputs::send)
-            .onCompletion { cause ->
-                if (cause is CancellationException) {
-                    outputs.close()
+        val receiveJob = connection.coroutineScope.launch {
+            while (isActive) {
+                val result = wsSession.incoming.receiveCatching()
+                if (result.isFailure) {
+                    val cause = result.exceptionOrNull()
+                    if (result.isClosed) {
+                        if (cause != null) {
+                            logger.warn(cause) { "The channel closed with an exception!" }
+                        }
+                        break
+                    } else {
+                        logger.error(cause) { "Failed to receive from websocket!" }
+                    }
                 } else {
-                    outputs.close(cause)
+                    processWebsocketFrame(result.getOrThrow(), connection)?.let {
+                        outputs.send(it)
+                    }
                 }
             }
-            .launchIn(wsSession)
+            val closeReason = wsSession.closeReason.await()
+            logger.info { "Websocket closed: $closeReason" }
+        }
+        receiveJob.invokeOnCompletion { cause ->
+            // propagate the cancellation to the websocket
+            when (cause) {
+                null -> wsSession.cancel()
+                is CancellationException -> wsSession.cancel(cause)
+                else -> wsSession.cancel(CancellationException("The receive job completed with an error!", cause))
+            }
+        }
 
         try {
             withTimeout(connectTimeoutMillis) {
                 onSocketIoConnected.join()
             }
         } catch (e: TimeoutCancellationException) {
-            wsSession.cancel(e)
+            logger.warn { "Timed out while waiting for socket.io's connected event after ${connectTimeoutMillis}ms!" }
+            receiveJob.cancel(e)
             throw e
         }
 

@@ -125,9 +125,9 @@ class Kognigy(
         when (frame) {
             is Frame.Text -> return processEngineIoPacket(frame, connection)
             is Frame.Binary -> logger.warn { "websocket binary, unable to process binary data: $frame" }
-            is Frame.Close -> logger.debug { "websocket close: $frame" }
-            is Frame.Ping -> logger.debug { "websocket ping: $frame" }
-            is Frame.Pong -> logger.debug { "websocket pong: $frame" }
+            is Frame.Close -> logger.trace { "websocket close: $frame" }
+            is Frame.Ping -> logger.trace { "websocket ping: $frame" }
+            is Frame.Pong -> logger.trace { "websocket pong: $frame" }
             else -> logger.error { "unknown websocket frame: $frame" }
         }
         return null
@@ -141,13 +141,13 @@ class Kognigy(
         logger.trace { "EngineIO packet: $packet" }
         when (packet) {
             is EngineIoPacket.Open -> {
+                logger.trace { "engine.io open: $packet" }
                 connection.setupPingTimer(packet.pingIntervalMillis, packet.pingTimeoutMillis)
-                logger.debug { "engine.io open: $packet" }
             }
-            is EngineIoPacket.Close -> logger.debug {
+            is EngineIoPacket.Close -> logger.trace {
                 "engine.io close"
             }
-            is EngineIoPacket.BinaryMessage -> logger.debug {
+            is EngineIoPacket.BinaryMessage -> logger.trace {
                 "engine.io binary frame"
             }
             is EngineIoPacket.TextMessage -> {
@@ -157,13 +157,13 @@ class Kognigy(
                 connection.send(EngineIoPacket.Pong)
             }
             is EngineIoPacket.Pong -> {
-                logger.debug { "engine.io pong" }
+                logger.trace { "engine.io pong" }
                 connection.onPong()
             }
-            is EngineIoPacket.Upgrade -> logger.debug {
+            is EngineIoPacket.Upgrade -> logger.trace {
                 "engine.io upgrade"
             }
-            is EngineIoPacket.Noop -> logger.debug {
+            is EngineIoPacket.Noop -> logger.trace {
                 "engine.io noop"
             }
             is EngineIoPacket.Error -> logger.error(packet.t) {
@@ -181,27 +181,27 @@ class Kognigy(
         logger.trace { "SocketIO packet: $packet" }
         when (packet) {
             is SocketIoPacket.Connect -> {
-                logger.debug { "socket.io connect: ${packet.data}" }
+                logger.trace { "socket.io connect: ${packet.data}" }
                 connection.onConnected()
             }
-            is SocketIoPacket.ConnectError -> logger.debug {
+            is SocketIoPacket.ConnectError -> logger.error {
                 "socket.io connectError: ${packet.data}"
             }
-            is SocketIoPacket.Disconnect -> logger.debug {
+            is SocketIoPacket.Disconnect -> logger.trace {
                 "socket.io disconnect"
             }
             is SocketIoPacket.Event -> when (val event = CognigyEvent.decode(json, packet)) {
                 is OutputEvent -> return event
                 else -> {}
             }
-            is SocketIoPacket.Acknowledge -> logger.debug {
+            is SocketIoPacket.Acknowledge -> logger.trace {
                 "socket.io ack: id=${packet.acknowledgeId}, data=${packet.data}"
             }
-            is SocketIoPacket.BinaryEvent -> logger.debug {
+            is SocketIoPacket.BinaryEvent -> logger.trace {
                 val data = packet.data.toHexString()
                 "socket.io binary event: id=${packet.acknowledgeId}, name=${packet.name}, data=$data"
             }
-            is SocketIoPacket.BinaryAcknowledge -> logger.debug {
+            is SocketIoPacket.BinaryAcknowledge -> logger.trace {
                 "socket.io binary ack: id=${packet.acknowledgeId}, data=${packet.data?.toHexString()}"
             }
             is SocketIoPacket.BrokenPacket -> logger.error(packet.t) {

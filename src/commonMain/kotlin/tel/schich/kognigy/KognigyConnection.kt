@@ -3,6 +3,7 @@ package tel.schich.kognigy
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.WebSocketSession
 import io.ktor.websocket.close
+import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -26,6 +27,14 @@ class KognigyConnection(
     private val socketIoConnected: CompletableDeferred<Unit>,
 ) {
     internal val coroutineScope = CoroutineScope(Job())
+    private val sendCounter = atomic(0L)
+    private val receiveCounter = atomic(0L)
+
+    val eventsSent: Long
+        get() = sendCounter.value
+
+    val eventsReceived: Long
+        get() = receiveCounter.value
 
     private var pingTimer: Job? = null
     private var pongTimeout: Job? = null
@@ -47,6 +56,10 @@ class KognigyConnection(
                 }
             }
         }
+    }
+
+    internal fun onReceived() {
+        receiveCounter.incrementAndGet()
     }
 
     internal fun onConnected() {
@@ -94,6 +107,7 @@ class KognigyConnection(
         if (flush) {
             wsSession.flush()
         }
+        sendCounter.incrementAndGet()
     }
 
     suspend fun close(closeReason: CloseReason = CloseReason(CloseReason.Codes.GOING_AWAY, "")) {

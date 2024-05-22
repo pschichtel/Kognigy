@@ -109,6 +109,7 @@ class Kognigy(
                 } else {
                     processWebsocketFrame(result.getOrThrow(), connection)?.let {
                         outputs.send(it)
+                        connection.onReceived()
                     }
                 }
             }

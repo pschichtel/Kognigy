@@ -41,6 +41,8 @@ class KognigyTest {
         start: Pair<String, JsonElement?> = "Start!" to null,
         delay: Long = 3000,
         receiveLimit: Int = 5,
+        expectedSent: Long = receiveLimit.toLong() + 1,
+        expectedReceived: Long = 23,
         newPayload: () -> Pair<String, JsonElement?>,
     ) {
         val uri = Url(System.getenv(ENDPOINT_URL_ENV))
@@ -70,21 +72,18 @@ class KognigyTest {
 
         sendInput(start)
 
-        var counter = 0
         connection.output
             .consumeAsFlow()
             .onEach { event ->
                 logger.info { "Received Event: $event" }
             }
             .filterIsInstance<CognigyEvent.Output.Message>()
-            .take(5)
+            .take(receiveLimit)
             .onEach { event ->
                 logger.info { "Received Text: <${event.data.text}>" }
-                if (counter++ < 5) {
-                    logger.info { "delay" }
-                    delay(delay)
-                    sendInput(newPayload())
-                }
+                logger.info { "delay" }
+                delay(delay)
+                sendInput(newPayload())
             }
             .onCompletion { t ->
                 when (t) {
@@ -98,7 +97,8 @@ class KognigyTest {
 
         connection.close()
 
-        assertEquals(receiveLimit, counter, "should take exactly 5 events")
+        assertEquals(expectedSent, connection.eventsSent, "sent too many events")
+        assertEquals(expectedReceived, connection.eventsReceived, "received too many events")
     }
 
     /**

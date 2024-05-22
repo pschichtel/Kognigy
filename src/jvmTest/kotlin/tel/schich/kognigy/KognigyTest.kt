@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonElement
 import mu.KotlinLogging
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariables
 import tel.schich.kognigy.protocol.ChannelName
@@ -27,8 +28,6 @@ import tel.schich.kognigy.protocol.EndpointToken
 import tel.schich.kognigy.protocol.SessionId
 import tel.schich.kognigy.protocol.UserId
 import java.util.UUID.randomUUID
-import kotlin.random.Random
-import kotlin.random.nextUInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -37,8 +36,11 @@ private val logger = KotlinLogging.logger {}
 class KognigyTest {
 
     private suspend fun CoroutineScope.runTest(
+        sessionId: SessionId? = null,
+        userId: UserId? = null,
         start: Pair<String, JsonElement?> = "Start!" to null,
         delay: Long = 3000,
+        receiveLimit: Int = 5,
         newPayload: () -> Pair<String, JsonElement?>,
     ) {
         val uri = Url(System.getenv(ENDPOINT_URL_ENV))
@@ -47,12 +49,13 @@ class KognigyTest {
         val proxy = System.getenv("COGNIGY_HTTP_PROXY")?.ifBlank { null }?.let { ProxyBuilder.http(it) }
 
         val kognigy = Kognigy(Java, proxyConfig = proxy)
+        val randomId = randomUUID().toString()
 
         val session = KognigySession(
-            SessionId("${randomUUID()}"),
+            id = sessionId ?: SessionId(randomId),
             uri,
             EndpointToken(token),
-            UserId("kognigy-integration-test-${Random.nextUInt()}"),
+            userId = userId ?: UserId("kognigy-integration-test-${randomId}"),
             ChannelName("kognigy"),
         )
 
@@ -95,7 +98,7 @@ class KognigyTest {
 
         connection.close()
 
-        assertEquals(5, counter, "should take exactly 5 events")
+        assertEquals(receiveLimit, counter, "should take exactly 5 events")
     }
 
     /**
@@ -109,7 +112,7 @@ class KognigyTest {
     @Test
     fun cognigyConnectivity() {
         runBlocking {
-            runTest { "Some text! ${Random.nextUInt()}" to null }
+            runTest { "Some text! ${randomUUID()}" to null }
         }
     }
 
@@ -123,9 +126,39 @@ class KognigyTest {
         runBlocking {
             (1..100).map {
                 scope.async {
-                    runTest { "Some text from $it! ${Random.nextUInt()}" to null }
+                    runTest { "Some text from $it! ${randomUUID()}" to null }
                 }
             }.awaitAll()
+        }
+    }
+
+    @EnabledIfEnvironmentVariables(
+        EnabledIfEnvironmentVariable(named = ENDPOINT_URL_ENV, matches = ".*"),
+        EnabledIfEnvironmentVariable(named = ENDPOINT_TOKEN_ENV, matches = ".*"),
+    )
+    @Test
+    fun missingSessionId() {
+        runBlocking {
+            assertThrows<EarlyDisconnectException> {
+                runTest(sessionId = SessionId("")) {
+                    "Some text! ${randomUUID()}" to null
+                }
+            }
+        }
+    }
+
+    @EnabledIfEnvironmentVariables(
+        EnabledIfEnvironmentVariable(named = ENDPOINT_URL_ENV, matches = ".*"),
+        EnabledIfEnvironmentVariable(named = ENDPOINT_TOKEN_ENV, matches = ".*"),
+    )
+    @Test
+    fun missingUserId() {
+        runBlocking {
+            assertThrows<EarlyDisconnectException> {
+                runTest(userId = UserId("")) {
+                    "Some text! ${randomUUID()}" to null
+                }
+            }
         }
     }
 

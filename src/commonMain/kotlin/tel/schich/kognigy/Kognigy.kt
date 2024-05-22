@@ -30,6 +30,9 @@ import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
 import tel.schich.kognigy.protocol.EngineIoPacket
 import tel.schich.kognigy.protocol.SocketIoPacket
 
+class EarlyDisconnectException :
+    Exception("The session got disconnected before receiving anything! Check your configuration!")
+
 class Kognigy(
     engineFactory: HttpClientEngineFactory<*>,
     private val connectTimeoutMillis: Long = 2000,
@@ -86,6 +89,11 @@ class Kognigy(
         val connection = KognigyConnection(session, outputs, wsSession, json, onSocketIoConnected)
 
         val receiveJob = connection.coroutineScope.launch {
+            if (!wsSession.isActive) {
+                // the websocket became inactive before the first receive attempt
+                onSocketIoConnected.completeExceptionally(EarlyDisconnectException())
+                return@launch
+            }
             while (isActive) {
                 val result = wsSession.incoming.receiveCatching()
                 if (result.isFailure) {
@@ -118,7 +126,7 @@ class Kognigy(
 
         try {
             withTimeout(connectTimeoutMillis) {
-                onSocketIoConnected.join()
+                onSocketIoConnected.await()
             }
         } catch (e: TimeoutCancellationException) {
             logger.warn { "Timed out while waiting for socket.io's connected event after ${connectTimeoutMillis}ms!" }

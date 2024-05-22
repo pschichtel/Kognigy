@@ -86,7 +86,7 @@ kotlin {
                 implementation(kotlin("test"))
                 implementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
                 implementation("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
-                implementation("org.slf4j:slf4j-simple:2.0.13")
+                implementation("ch.qos.logback:logback-classic:1.5.6")
             }
         }
     }

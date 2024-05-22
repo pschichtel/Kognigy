@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonElement
 import mu.KotlinLogging
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariables
@@ -25,7 +26,7 @@ import tel.schich.kognigy.protocol.CognigyEvent
 import tel.schich.kognigy.protocol.EndpointToken
 import tel.schich.kognigy.protocol.SessionId
 import tel.schich.kognigy.protocol.UserId
-import java.util.UUID
+import java.util.UUID.randomUUID
 import kotlin.random.Random
 import kotlin.random.nextUInt
 import kotlin.test.Test
@@ -35,7 +36,11 @@ private val logger = KotlinLogging.logger {}
 
 class KognigyTest {
 
-    private suspend fun CoroutineScope.runTest() {
+    private suspend fun CoroutineScope.runTest(
+        start: Pair<String, JsonElement?> = "Start!" to null,
+        delay: Long = 3000,
+        newPayload: () -> Pair<String, JsonElement?>,
+    ) {
         val uri = Url(System.getenv(ENDPOINT_URL_ENV))
         val token = System.getenv(ENDPOINT_TOKEN_ENV)
 
@@ -44,7 +49,7 @@ class KognigyTest {
         val kognigy = Kognigy(Java, proxyConfig = proxy)
 
         val session = KognigySession(
-            SessionId("${UUID.randomUUID()}"),
+            SessionId("${randomUUID()}"),
             uri,
             EndpointToken(token),
             UserId("kognigy-integration-test-${Random.nextUInt()}"),
@@ -55,12 +60,12 @@ class KognigyTest {
 
         val connection = kognigy.connect(session)
 
-        suspend fun sendInput(input: String) {
+        suspend fun sendInput(input: Pair<String, JsonElement?>) {
             logger.info { "Input: $input" }
-            connection.sendInput(input)
+            connection.sendInput(input.first, input.second)
         }
 
-        sendInput("Start!")
+        sendInput(start)
 
         var counter = 0
         connection.output
@@ -74,8 +79,8 @@ class KognigyTest {
                 logger.info { "Received Text: <${event.data.text}>" }
                 if (counter++ < 5) {
                     logger.info { "delay" }
-                    delay(5000)
-                    sendInput("Some text! ${Random.nextUInt()}")
+                    delay(delay)
+                    sendInput(newPayload())
                 }
             }
             .onCompletion { t ->
@@ -104,7 +109,7 @@ class KognigyTest {
     @Test
     fun cognigyConnectivity() {
         runBlocking {
-            runTest()
+            runTest { "Some text! ${Random.nextUInt()}" to null }
         }
     }
 
@@ -118,13 +123,11 @@ class KognigyTest {
         runBlocking {
             (1..100).map {
                 scope.async {
-                    runTest()
+                    runTest { "Some text from $it! ${Random.nextUInt()}" to null }
                 }
             }.awaitAll()
         }
     }
-
-
 
     private companion object {
         const val ENDPOINT_URL_ENV = "ENDPOINT_URL"

@@ -101,6 +101,6 @@ class KognigyConnection(
     }
 
     fun cancel(cause: CancellationException? = null) {
-        coroutineScope.cancel()
+        coroutineScope.cancel(cause)
     }
 }

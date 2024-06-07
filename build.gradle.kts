@@ -46,9 +46,11 @@ kotlin {
     jvm {
         withJava()
         compilations.all {
-            compilerOptions.configure {
-                jvmTarget.set(JVM_11)
-                freeCompilerArgs.add("-progressive")
+            compileTaskProvider.configure {
+                compilerOptions {
+                    jvmTarget.set(JVM_11)
+                    freeCompilerArgs.add("-progressive")
+                }
             }
         }
     }

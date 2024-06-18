@@ -42,7 +42,6 @@ sealed interface CognigyEvent {
 
     sealed interface InputEvent : CognigyEvent
     sealed interface OutputEvent : CognigyEvent
-    sealed interface StatusEvent : CognigyEvent
 
     @Serializable
     data class OutputData(
@@ -155,7 +154,7 @@ sealed interface CognigyEvent {
     }
 
     @Serializable
-    data object EndpointReady : StatusEvent {
+    data object EndpointReady : CognigyEvent {
         const val NAME = "endpoint-ready"
         override val name = NAME
     }
@@ -163,7 +162,7 @@ sealed interface CognigyEvent {
     @Serializable
     data class Exception(
         val error: JsonElement,
-    ) : StatusEvent {
+    ) : OutputEvent {
         override val name = NAME
 
         companion object {
@@ -175,7 +174,7 @@ sealed interface CognigyEvent {
         val data: SocketIoPacket.Event,
         val reason: String,
         val t: Throwable?,
-    ) : StatusEvent {
+    ) : OutputEvent {
         override val name = "broken"
     }
 

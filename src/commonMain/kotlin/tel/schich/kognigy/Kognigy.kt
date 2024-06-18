@@ -217,12 +217,6 @@ class Kognigy(
                 is CognigyEvent.EndpointReady -> {
                     connection.onConnectionReady()
                 }
-                is CognigyEvent.BrokenEvent -> {
-                    logger.warn(event.t) { "Received broken event: $event" }
-                }
-                is CognigyEvent.Exception -> {
-                    logger.warn { "Received exception: $event" }
-                }
                 is CognigyEvent.ProcessInput -> {}
             }
             is SocketIoPacket.Acknowledge -> logger.trace {

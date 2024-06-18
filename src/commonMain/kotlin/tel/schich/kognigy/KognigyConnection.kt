@@ -29,6 +29,7 @@ class KognigyConnection(
 
     private var pingTimer: Job? = null
     private var pongTimeout: Job? = null
+    private var endpointReadyTimeout: Job? = null
 
     internal suspend fun setupPingTimer(intervalMillis: Long, timeoutMillis: Long) {
         pingTimer?.cancel()
@@ -49,8 +50,25 @@ class KognigyConnection(
         }
     }
 
-    internal fun onConnected() {
+    private fun completeConnection() {
         socketIoConnected.complete(Unit)
+    }
+
+    internal fun setupEndpointReadyTimeout(delayMillis: Long, block: suspend () -> Unit) {
+        if (delayMillis <= 0) {
+            return
+        }
+        endpointReadyTimeout?.cancel()
+        endpointReadyTimeout = wsSession.launch {
+            delay(delayMillis)
+            completeConnection()
+            block()
+        }
+    }
+
+    internal fun onConnectionReady() {
+        endpointReadyTimeout?.cancel()
+        completeConnection()
     }
 
     internal fun onPong() {

@@ -42,6 +42,7 @@ sealed interface CognigyEvent {
 
     sealed interface InputEvent : CognigyEvent
     sealed interface OutputEvent : CognigyEvent
+    sealed interface StatusEvent : CognigyEvent
 
     @Serializable
     data class OutputData(
@@ -154,9 +155,15 @@ sealed interface CognigyEvent {
     }
 
     @Serializable
+    data object EndpointReady : StatusEvent {
+        const val NAME = "endpoint-ready"
+        override val name = NAME
+    }
+
+    @Serializable
     data class Exception(
         val error: JsonElement,
-    ) : OutputEvent {
+    ) : StatusEvent {
         override val name = NAME
 
         companion object {
@@ -168,7 +175,7 @@ sealed interface CognigyEvent {
         val data: SocketIoPacket.Event,
         val reason: String,
         val t: Throwable?,
-    ) : OutputEvent {
+    ) : StatusEvent {
         override val name = "broken"
     }
 
@@ -188,6 +195,7 @@ sealed interface CognigyEvent {
                         TypingStatus.NAME -> json.decodeFromJsonElement<TypingStatus>(packet.arguments.first())
                         FinalPing.NAME -> json.decodeFromJsonElement<FinalPing>(packet.arguments.first())
                         TriggeredElement.NAME -> json.decodeFromJsonElement<TriggeredElement>(packet.arguments.first())
+                        EndpointReady.NAME -> json.decodeFromJsonElement<EndpointReady>(packet.arguments.first())
                         Exception.NAME -> json.decodeFromJsonElement<Exception>(packet.arguments.first())
                         else -> BrokenEvent(packet, "unknown event name: $name", null)
                     }
@@ -211,6 +219,7 @@ sealed interface CognigyEvent {
             is TypingStatus -> data(json, TypingStatus.NAME, event)
             is FinalPing -> data(json, FinalPing.NAME, event)
             is TriggeredElement -> data(json, TriggeredElement.NAME, event)
+            is EndpointReady -> data(json, EndpointReady.NAME, event)
             is Exception -> data(json, Exception.NAME, event)
             is BrokenEvent -> event.data
         }

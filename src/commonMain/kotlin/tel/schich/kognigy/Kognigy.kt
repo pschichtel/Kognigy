@@ -22,11 +22,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import mu.KotlinLogging
 import tel.schich.kognigy.protocol.CognigyEvent
-import tel.schich.kognigy.protocol.CognigyEvent.OutputEvent
 import tel.schich.kognigy.protocol.EngineIoPacket
 import tel.schich.kognigy.protocol.SocketIoPacket
 
@@ -38,8 +36,9 @@ class Kognigy(
     private val connectTimeoutMillis: Long = 2000,
     private val userAgent: String = "Kognigy",
     private val proxyConfig: ProxyConfig? = null,
+    @Deprecated(message = "This should not be used", level = DeprecationLevel.WARNING)
+    private val endpointReadyTimeoutOfShameMillis: Long = 0,
 ) {
-    @OptIn(ExperimentalSerializationApi::class)
     private val json = Json {
         encodeDefaults = true
         explicitNulls = false
@@ -84,7 +83,7 @@ class Kognigy(
             }
         }
 
-        val outputs = Channel<OutputEvent>(Channel.RENDEZVOUS)
+        val outputs = Channel<CognigyEvent.OutputEvent>(Channel.RENDEZVOUS)
         val onSocketIoConnected = CompletableDeferred<Unit>()
         val connection = KognigyConnection(session, outputs, wsSession, json, onSocketIoConnected)
 
@@ -140,7 +139,7 @@ class Kognigy(
     private suspend fun processWebsocketFrame(
         frame: Frame,
         connection: KognigyConnection,
-    ): OutputEvent? {
+    ): CognigyEvent.OutputEvent? {
         logger.trace { "Frame: " + String(frame.data) }
         when (frame) {
             is Frame.Text -> return processEngineIoPacket(frame, connection)
@@ -156,7 +155,7 @@ class Kognigy(
     private suspend fun processEngineIoPacket(
         frame: Frame.Text,
         connection: KognigyConnection,
-    ): OutputEvent? {
+    ): CognigyEvent.OutputEvent? {
         val packet = EngineIoPacket.decode(json, frame)
         logger.trace { "EngineIO packet: $packet" }
         when (packet) {
@@ -196,13 +195,16 @@ class Kognigy(
     private fun processSocketIoPacket(
         engineIoPacket: EngineIoPacket.TextMessage,
         connection: KognigyConnection,
-    ): OutputEvent? {
+    ): CognigyEvent.OutputEvent? {
         val packet = SocketIoPacket.decode(json, engineIoPacket)
         logger.trace { "SocketIO packet: $packet" }
         when (packet) {
             is SocketIoPacket.Connect -> {
                 logger.trace { "socket.io connect: ${packet.data}" }
-                connection.onConnected()
+                @Suppress("DEPRECATION")
+                connection.setupEndpointReadyTimeout(endpointReadyTimeoutOfShameMillis) {
+                    logger.warn { "The endpoint did not become ready within $endpointReadyTimeoutOfShameMillis ms, assuming it's ready..." }
+                }
             }
             is SocketIoPacket.ConnectError -> logger.error {
                 "socket.io connectError: ${packet.data}"
@@ -211,8 +213,17 @@ class Kognigy(
                 "socket.io disconnect"
             }
             is SocketIoPacket.Event -> when (val event = CognigyEvent.decode(json, packet)) {
-                is OutputEvent -> return event
-                else -> {}
+                is CognigyEvent.OutputEvent -> return event
+                is CognigyEvent.EndpointReady -> {
+                    connection.onConnectionReady()
+                }
+                is CognigyEvent.BrokenEvent -> {
+                    logger.warn(event.t) { "Received broken event: $event" }
+                }
+                is CognigyEvent.Exception -> {
+                    logger.warn { "Received exception: $event" }
+                }
+                is CognigyEvent.ProcessInput -> {}
             }
             is SocketIoPacket.Acknowledge -> logger.trace {
                 "socket.io ack: id=${packet.acknowledgeId}, data=${packet.data}"

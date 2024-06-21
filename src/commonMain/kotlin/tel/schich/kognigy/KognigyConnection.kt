@@ -5,6 +5,7 @@ import io.ktor.websocket.WebSocketSession
 import io.ktor.websocket.close
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
@@ -17,6 +18,10 @@ import tel.schich.kognigy.protocol.CognigyEvent
 import tel.schich.kognigy.protocol.EngineIoPacket
 import tel.schich.kognigy.protocol.PingTimeoutException
 import tel.schich.kognigy.protocol.SocketIoPacket
+
+private val pingJobName = CoroutineName("kognigy-ping-job")
+private val pongTimeoutJobName = CoroutineName("kognigy-pong-timeout-job")
+private val endpointReadyTimeoutJobName = CoroutineName("kognigy-endpoint-ready-timeout-job")
 
 class KognigyConnection(
     val session: KognigySession,
@@ -33,13 +38,13 @@ class KognigyConnection(
 
     internal suspend fun setupPingTimer(intervalMillis: Long, timeoutMillis: Long) {
         pingTimer?.cancel()
-        pingTimer = wsSession.launch {
+        pingTimer = wsSession.launch(pingJobName) {
             while (true) {
                 delay(intervalMillis)
                 send(EngineIoPacket.Ping)
                 val timeoutMessage = "engine.io pong didn't arrive for $timeoutMillis ms!"
                 if (pongTimeout == null) {
-                    pongTimeout = wsSession.launch {
+                    pongTimeout = wsSession.launch(pongTimeoutJobName) {
                         delay(timeoutMillis)
                         val reason = PingTimeoutException(timeoutMessage)
                         socketIoConnected.cancel(reason)
@@ -59,7 +64,7 @@ class KognigyConnection(
             return
         }
         endpointReadyTimeout?.cancel()
-        endpointReadyTimeout = wsSession.launch {
+        endpointReadyTimeout = wsSession.launch(endpointReadyTimeoutJobName) {
             delay(delayMillis)
             completeConnection()
             block()

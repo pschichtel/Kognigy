@@ -16,6 +16,7 @@ import io.ktor.utils.io.core.String
 import io.ktor.websocket.Frame
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
@@ -30,6 +31,8 @@ import tel.schich.kognigy.protocol.SocketIoPacket
 
 class EarlyDisconnectException :
     Exception("The session got disconnected before receiving anything! Check your configuration!")
+
+private val receiveJobName = CoroutineName("kognigy-receive-job")
 
 class Kognigy(
     engineFactory: HttpClientEngineFactory<*>,
@@ -87,7 +90,7 @@ class Kognigy(
         val onSocketIoConnected = CompletableDeferred<Unit>()
         val connection = KognigyConnection(session, outputs, wsSession, json, onSocketIoConnected)
 
-        val receiveJob = connection.coroutineScope.launch {
+        val receiveJob = connection.coroutineScope.launch(receiveJobName) {
             if (!wsSession.isActive) {
                 // the websocket became inactive before the first receive attempt
                 onSocketIoConnected.completeExceptionally(EarlyDisconnectException())

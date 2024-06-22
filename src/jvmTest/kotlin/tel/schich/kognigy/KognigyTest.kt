@@ -1,22 +1,22 @@
 package tel.schich.kognigy
 
+import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.engine.ProxyBuilder
+import io.ktor.client.engine.config
 import io.ktor.client.engine.http
 import io.ktor.client.engine.java.Java
 import io.ktor.http.Url
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonElement
 import mu.KotlinLogging
 import org.junit.jupiter.api.assertThrows
@@ -27,28 +27,48 @@ import tel.schich.kognigy.protocol.CognigyEvent
 import tel.schich.kognigy.protocol.EndpointToken
 import tel.schich.kognigy.protocol.SessionId
 import tel.schich.kognigy.protocol.UserId
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID.randomUUID
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.fail
 
 private val logger = KotlinLogging.logger {}
 
+data class TestIteration(val i: Int) : AbstractCoroutineContextElement(TestIteration) {
+    companion object Key : CoroutineContext.Key<CoroutineName>
+}
+
 class KognigyTest {
 
-    private suspend fun CoroutineScope.runTest(
+    private fun defaultKognigy(
+        engine: HttpClientEngineFactory<*> = Java,
+        endpointReadyTimeoutOfShame: Long = -1,
+    ): Kognigy {
+        val proxy = System.getenv("COGNIGY_HTTP_PROXY")?.ifBlank { null }?.let { ProxyBuilder.http(it) }
+
+        val configuredEngine = engine.config {
+            this.proxy = proxy
+        }
+        return Kognigy(configuredEngine, endpointReadyTimeoutOfShameMillis = endpointReadyTimeoutOfShame)
+    }
+
+    private suspend fun runTest(
+        kognigy: Kognigy = defaultKognigy(),
         sessionId: SessionId? = null,
         userId: UserId? = null,
-        start: Pair<String, JsonElement?> = "Start!" to null,
         delay: Long = 3000,
-        receiveLimit: Int = 5,
+        iterations: Int = 5,
         newPayload: () -> Pair<String, JsonElement?>,
     ) {
         val uri = Url(System.getenv(ENDPOINT_URL_ENV))
         val token = System.getenv(ENDPOINT_TOKEN_ENV)
 
-        val proxy = System.getenv("COGNIGY_HTTP_PROXY")?.ifBlank { null }?.let { ProxyBuilder.http(it) }
-
-        val kognigy = Kognigy(Java, proxyConfig = proxy)
         val randomId = randomUUID().toString()
 
         val session = KognigySession(
@@ -59,46 +79,57 @@ class KognigyTest {
             ChannelName("kognigy"),
         )
 
-        logger.info { "Session: $session" }
+//        logger.info { "Session: $session" }
 
         val connection = kognigy.connect(session)
 
         suspend fun sendInput(input: Pair<String, JsonElement?>) {
-            logger.info { "Input: $input" }
+//            logger.info { "Input: $input" }
             connection.sendInput(input.first, input.second)
         }
 
-        sendInput(start)
+        var totalMillis = 0L
+        var maxMillis = Long.MIN_VALUE
+        var minMillis = Long.MAX_VALUE
 
-        var counter = 0
-        connection.output
-            .consumeAsFlow()
-            .onEach { event ->
-                logger.info { "Received Event: $event" }
-            }
-            .filterIsInstance<CognigyEvent.Output.Message>()
-            .take(5)
-            .onEach { event ->
-                logger.info { "Received Text: <${event.data.text}>" }
-                if (counter++ < 5) {
-                    logger.info { "delay" }
-                    delay(delay)
-                    sendInput(newPayload())
+        repeat(iterations) {
+            val input = newPayload()
+            sendInput(input)
+            val start = Instant.now()
+            while (true) {
+                val event = try {
+                    withTimeout(20000) {
+                        connection.output.receive().also {
+                            val duration = Duration.between(start, Instant.now()).toMillis()
+                            totalMillis += duration
+                            if (duration > maxMillis) {
+                                maxMillis = duration
+                            }
+                            if (duration < minMillis) {
+                                minMillis = duration
+                            }
+                        }
+                    }
+                } catch (e: TimeoutCancellationException) {
+                    fail("Receive timed out!", e)
                 }
-            }
-            .onCompletion { t ->
-                when (t) {
-                    null -> logger.info { "flow completed normally" }
-                    is CancellationException -> logger.info(t) { "flow got cancelled" }
-                    else -> logger.error(t) { "flow completed abnormally" }
+//                logger.info { "Received Event: $event" }
+                if (event !is CognigyEvent.Output.Message) {
+                    continue
                 }
+
+                assertEquals("you said \"${input.first}\"\ndata was \"{}\"", event.data.text)
+
+                delay(delay)
+
+                break
             }
-            .launchIn(this)
-            .join()
+        }
 
         connection.close()
 
-        assertEquals(receiveLimit, counter, "should take exactly 5 events")
+        val avg = totalMillis / iterations
+        logger.info { "run complete - min=$minMillis max=$maxMillis avg=$avg" }
     }
 
     /**
@@ -121,14 +152,33 @@ class KognigyTest {
         EnabledIfEnvironmentVariable(named = ENDPOINT_TOKEN_ENV, matches = ".*"),
     )
     @Test
-    fun loadTest() {
-        val scope = CoroutineScope(SupervisorJob())
-        runBlocking {
-            (1..100).map {
-                scope.async {
-                    runTest { "Some text from $it! ${randomUUID()}" to null }
+    fun loadTest() = runBlocking {
+        val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+
+        val activeRuns = AtomicInteger(0)
+        var i = 0
+
+        val kognigy = defaultKognigy()
+
+        coroutineScope {
+            withContext(dispatcher) {
+                val coroutineName = CoroutineName("kognigy-test-run")
+                while (true) {
+                    val iteration = i++
+                    launch(Job() + Dispatchers.IO + coroutineName + TestIteration(iteration)) {
+                        activeRuns.incrementAndGet()
+                        try {
+                            runTest(kognigy, iterations = 1) { "Some text from $iteration! ${randomUUID()}" to null }
+                        } finally {
+                            activeRuns.decrementAndGet()
+                        }
+                    }
+                    if (iteration % 10 == 0) {
+                        logger.info("######## $iteration. iteration, $activeRuns active runs")
+                    }
+                    delay(timeMillis = 50)
                 }
-            }.awaitAll()
+            }
         }
     }
 

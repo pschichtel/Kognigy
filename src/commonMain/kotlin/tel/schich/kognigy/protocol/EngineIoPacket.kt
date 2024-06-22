@@ -9,6 +9,7 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+class PongTimeoutException(message: String) : CancellationException(message)
 class PingTimeoutException(message: String) : CancellationException(message)
 
 class Data(val data: ByteArray) {

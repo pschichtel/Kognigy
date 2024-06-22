@@ -7,7 +7,6 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.UserAgent
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocketSession
-import io.ktor.client.request.parameter
 import io.ktor.http.HttpMethod
 import io.ktor.http.URLProtocol
 import io.ktor.http.encodedPath
@@ -17,9 +16,12 @@ import io.ktor.websocket.Frame
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
@@ -38,7 +40,14 @@ class Kognigy(
     engineFactory: HttpClientEngineFactory<*>,
     private val connectTimeoutMillis: Long = 2000,
     private val userAgent: String = "Kognigy",
+    @Deprecated(message = "This is ignored, configure it in the engine directly", level = DeprecationLevel.WARNING)
     private val proxyConfig: ProxyConfig? = null,
+    /**
+     * Domain:
+     * * `n > 0`: wait n millis for the endpoint-ready event, afterward assume ready
+     * * `n = 0`: immediately assume ready
+     * * `n < 0`: never assume ready
+     */
     @Deprecated(message = "This should not be used", level = DeprecationLevel.WARNING)
     private val endpointReadyTimeoutOfShameMillis: Long = 0,
 ) {
@@ -50,6 +59,7 @@ class Kognigy(
 
     private val client = HttpClient(engineFactory) {
         engine {
+            @Suppress("DEPRECATION")
             proxy = proxyConfig
         }
         install(WebSockets)
@@ -77,48 +87,37 @@ class Kognigy(
                 host = url.host
                 port = url.port
                 encodedPath = "/socket.io/"
-                parameter("EIO", "3")
-                parameter("transport", "websocket")
-                parameter("urlToken", session.endpointToken.value)
-                parameter("sessionId", session.id.value)
-                parameter("userId", session.userId.value)
-                parameter("testMode", session.testMode.toString())
+                parameters.append("EIO", "3")
+                parameters.append("transport", "websocket")
+                parameters.append("urlToken", session.endpointToken.value)
+                parameters.append("sessionId", session.id.value)
+                parameters.append("userId", session.userId.value)
+                parameters.append("testMode", session.testMode.toString())
             }
         }
 
-        val outputs = Channel<CognigyEvent.OutputEvent>(Channel.RENDEZVOUS)
+        val outputs = Channel<CognigyEvent.OutputEvent>()
         val onSocketIoConnected = CompletableDeferred<Unit>()
-        val connection = KognigyConnection(session, outputs, wsSession, json, onSocketIoConnected)
+        val scope = CoroutineScope(Job())
+        val connection = KognigyConnection(session, outputs, scope, wsSession, json, onSocketIoConnected)
 
-        val receiveJob = connection.coroutineScope.launch(receiveJobName) {
+        // Never directly cancel this job, it will naturally terminate once the websocket session is closed
+        //  and all messages have been consumed
+        val receiveJob = scope.launch(receiveJobName) {
             if (!wsSession.isActive) {
                 // the websocket became inactive before the first receive attempt
                 onSocketIoConnected.completeExceptionally(EarlyDisconnectException())
                 return@launch
             }
-            while (isActive) {
-                val result = wsSession.incoming.receiveCatching()
-                if (result.isFailure) {
-                    val cause = result.exceptionOrNull()
-                    if (result.isClosed) {
-                        if (cause != null) {
-                            logger.warn(cause) { "The channel closed with an exception!" }
-                        }
-                        break
-                    } else {
-                        logger.error(cause) { "Failed to receive from websocket!" }
-                    }
-                } else {
-                    processWebsocketFrame(result.getOrThrow(), connection)?.let {
-                        outputs.send(it)
-                    }
+            wsSession.incoming.consumeEach { frame ->
+                processWebsocketFrame(frame, connection)?.let {
+                    outputs.send(it)
                 }
             }
-            val closeReason = wsSession.closeReason.await()
-            logger.info { "Websocket closed: $closeReason" }
         }
+
         receiveJob.invokeOnCompletion { cause ->
-            // propagate the cancellation to the websocket
+            // propagate the completion to the websocket
             when (cause) {
                 null -> wsSession.cancel()
                 is CancellationException -> wsSession.cancel(cause)
@@ -132,7 +131,7 @@ class Kognigy(
             }
         } catch (e: TimeoutCancellationException) {
             logger.warn { "Timed out while waiting for socket.io's connected event after ${connectTimeoutMillis}ms!" }
-            receiveJob.cancel(e)
+            wsSession.cancel(e)
             throw e
         }
 
@@ -176,7 +175,7 @@ class Kognigy(
                 return processSocketIoPacket(packet, connection)
             }
             is EngineIoPacket.Ping -> {
-                connection.send(EngineIoPacket.Pong)
+                connection.send(EngineIoPacket.Pong, flush = true)
             }
             is EngineIoPacket.Pong -> {
                 logger.trace { "engine.io pong" }

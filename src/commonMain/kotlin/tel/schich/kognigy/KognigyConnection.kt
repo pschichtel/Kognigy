@@ -1,13 +1,11 @@
 package tel.schich.kognigy
 
 import io.ktor.websocket.CloseReason
-import io.ktor.websocket.WebSocketSession
-import io.ktor.websocket.close
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
@@ -31,7 +29,7 @@ class KognigyConnection(
     val session: KognigySession,
     val output: ReceiveChannel<CognigyEvent.OutputEvent>,
     private val receiveScope: CoroutineScope,
-    private val wsSession: WebSocketSession,
+    private val connection: Connection,
     private val json: Json,
     private val socketIoConnected: CompletableDeferred<Unit>,
 ) {
@@ -44,20 +42,24 @@ class KognigyConnection(
         pingTimer?.cancel()
         val timeoutMessage = "engine.io pong didn't arrive for $timeoutMillis ms!"
 
-        fun fail(reason: CancellationException) {
+        suspend fun fail(reason: CancellationException) {
             socketIoConnected.completeExceptionally(reason)
-            wsSession.cancel(reason)
+            connection.disconnect(/*reason*/)
         }
 
-        pingTimer = wsSession.launch(pingJobName) {
+        pingTimer = receiveScope.launch(pingJobName) {
             while (true) {
                 delay(intervalMillis)
                 try {
+                    @OptIn(DelicateCoroutinesApi::class)
+                    if (connection.input.isClosedForSend) {
+                        break
+                    }
                     withTimeout(timeoutMillis) {
-                        send(EngineIoPacket.Ping, flush = true)
+                        send(EngineIoPacket.Ping)
                     }
                     if (pongTimeout == null) {
-                        pongTimeout = wsSession.launch(pongTimeoutJobName) {
+                        pongTimeout = receiveScope.launch(pongTimeoutJobName) {
                             delay(timeoutMillis)
                             fail(PongTimeoutException(timeoutMessage))
                         }
@@ -83,7 +85,7 @@ class KognigyConnection(
             completeConnection()
             return
         }
-        endpointReadyTimeout = wsSession.launch(endpointReadyTimeoutJobName) {
+        endpointReadyTimeout = receiveScope.launch(endpointReadyTimeoutJobName) {
             delay(delayMillis)
             completeConnection()
             block()
@@ -100,11 +102,8 @@ class KognigyConnection(
         pongTimeout = null
     }
 
-    internal suspend fun send(packet: EngineIoPacket, flush: Boolean) {
-        wsSession.send(EngineIoPacket.encode(json, packet))
-        if (flush) {
-            wsSession.flush()
-        }
+    internal suspend fun send(packet: EngineIoPacket) {
+        connection.input.send(EngineIoPacket.encode(json, packet))
     }
 
     @Suppress("LongParameterList")
@@ -131,15 +130,16 @@ class KognigyConnection(
             data = data,
             text = text,
         )
-        send(event, flush)
+        send(event)
     }
 
-    suspend fun send(event: CognigyEvent.InputEvent, flush: Boolean = false) {
-        send(SocketIoPacket.encode(json, CognigyEvent.encode(json, event)), flush)
+    suspend fun send(event: CognigyEvent.InputEvent) {
+        send(SocketIoPacket.encode(json, CognigyEvent.encode(json, event)))
     }
 
     suspend fun close(closeReason: CloseReason = CloseReason(CloseReason.Codes.GOING_AWAY, "")) {
-        wsSession.close(closeReason)
+        connection.disconnect()
+        // cancel()
     }
 
     fun cancel(cause: CancellationException? = null) {

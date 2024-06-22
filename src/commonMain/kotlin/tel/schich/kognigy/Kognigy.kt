@@ -1,28 +1,19 @@
 package tel.schich.kognigy
 
-import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.engine.ProxyConfig
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.UserAgent
-import io.ktor.client.plugins.websocket.WebSockets
-import io.ktor.client.plugins.websocket.webSocketSession
-import io.ktor.http.HttpMethod
+import io.ktor.http.URLBuilder
 import io.ktor.http.URLProtocol
 import io.ktor.http.encodedPath
 import io.ktor.http.isSecure
-import io.ktor.utils.io.core.String
-import io.ktor.websocket.Frame
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
@@ -57,20 +48,6 @@ class Kognigy(
         ignoreUnknownKeys = true
     }
 
-    private val client = HttpClient(engineFactory) {
-        engine {
-            @Suppress("DEPRECATION")
-            proxy = proxyConfig
-        }
-        install(WebSockets)
-        install(HttpTimeout) {
-            this.connectTimeoutMillis = connectTimeoutMillis
-        }
-        install(UserAgent) {
-            agent = userAgent
-        }
-    }
-
     suspend fun connect(session: KognigySession): KognigyConnection {
         val url = session.endpoint
 
@@ -78,38 +55,33 @@ class Kognigy(
             "Protocol must be http or https"
         }
 
-        val wsSession = client.webSocketSession {
-            method = HttpMethod.Get
-            url {
-                protocol =
-                    if (url.protocol.isSecure()) URLProtocol.WSS
-                    else URLProtocol.WS
-                host = url.host
-                port = url.port
-                encodedPath = "/socket.io/"
-                parameters.append("EIO", "3")
-                parameters.append("transport", "websocket")
-                parameters.append("urlToken", session.endpointToken.value)
-                parameters.append("sessionId", session.id.value)
-                parameters.append("userId", session.userId.value)
-                parameters.append("testMode", session.testMode.toString())
-            }
-        }
+        val uri = URLBuilder(session.endpoint).apply {
+            protocol =
+                if (url.protocol.isSecure()) URLProtocol.WSS
+                else URLProtocol.WS
+            host = url.host
+            port = url.port
+            encodedPath = "/socket.io/"
+            parameters.append("EIO", "3")
+            parameters.append("transport", "websocket")
+            parameters.append("urlToken", session.endpointToken.value)
+            parameters.append("sessionId", session.id.value)
+            parameters.append("userId", session.userId.value)
+            parameters.append("testMode", session.testMode.toString())
+        }.build().toString()
+
+        val client = connectWebsocket(uri, 0)
+
 
         val outputs = Channel<CognigyEvent.OutputEvent>()
         val onSocketIoConnected = CompletableDeferred<Unit>()
         val scope = CoroutineScope(Job())
-        val connection = KognigyConnection(session, outputs, scope, wsSession, json, onSocketIoConnected)
+        val connection = KognigyConnection(session, outputs, scope, client, json, onSocketIoConnected)
 
         // Never directly cancel this job, it will naturally terminate once the websocket session is closed
         //  and all messages have been consumed
         val receiveJob = scope.launch(receiveJobName) {
-            if (!wsSession.isActive) {
-                // the websocket became inactive before the first receive attempt
-                onSocketIoConnected.completeExceptionally(EarlyDisconnectException())
-                return@launch
-            }
-            wsSession.incoming.consumeEach { frame ->
+            client.output.consumeEach { frame ->
                 processWebsocketFrame(frame, connection)?.let {
                     outputs.send(it)
                 }
@@ -119,9 +91,9 @@ class Kognigy(
         receiveJob.invokeOnCompletion { cause ->
             // propagate the completion to the websocket
             when (cause) {
-                null -> wsSession.cancel()
-                is CancellationException -> wsSession.cancel(cause)
-                else -> wsSession.cancel(CancellationException("The receive job completed with an error!", cause))
+                null -> client.output.cancel()
+                is CancellationException -> client.output.cancel(cause)
+                else -> client.output.cancel(CancellationException("The receive job completed with an error!", cause))
             }
         }
 
@@ -131,7 +103,7 @@ class Kognigy(
             }
         } catch (e: TimeoutCancellationException) {
             logger.warn { "Timed out while waiting for socket.io's connected event after ${connectTimeoutMillis}ms!" }
-            wsSession.cancel(e)
+            client.input.close(e)
             throw e
         }
 
@@ -142,14 +114,12 @@ class Kognigy(
         frame: Frame,
         connection: KognigyConnection,
     ): CognigyEvent.OutputEvent? {
-        logger.trace { "Frame: " + String(frame.data) }
         when (frame) {
             is Frame.Text -> return processEngineIoPacket(frame, connection)
             is Frame.Binary -> logger.warn { "websocket binary, unable to process binary data: $frame" }
             is Frame.Close -> logger.trace { "websocket close: $frame" }
             is Frame.Ping -> logger.trace { "websocket ping: $frame" }
             is Frame.Pong -> logger.trace { "websocket pong: $frame" }
-            else -> logger.error { "unknown websocket frame: $frame" }
         }
         return null
     }
@@ -175,7 +145,7 @@ class Kognigy(
                 return processSocketIoPacket(packet, connection)
             }
             is EngineIoPacket.Ping -> {
-                connection.send(EngineIoPacket.Pong, flush = true)
+                connection.send(EngineIoPacket.Pong)
             }
             is EngineIoPacket.Pong -> {
                 logger.trace { "engine.io pong" }

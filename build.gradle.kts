@@ -74,8 +74,20 @@ kotlin {
             }
         }
 
+        val jvmMain by getting {
+            dependencies {
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:$coroutinesVersion")
+            }
+        }
+
+        val jsMain by getting {
+            dependencies {
+            }
+        }
+
         val commonTest by getting {
             dependencies {
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-debug:$coroutinesVersion")
                 implementation(kotlin("test-common"))
                 implementation(kotlin("test-annotations-common"))
             }
@@ -85,6 +97,8 @@ kotlin {
             dependencies {
                 val junitVersion = "5.10.2"
                 implementation("io.ktor:ktor-client-java:$ktorVersion")
+                implementation("io.ktor:ktor-client-cio:$ktorVersion")
+                implementation("io.ktor:ktor-client-okhttp:$ktorVersion")
                 implementation(kotlin("test"))
                 implementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
                 implementation("org.junit.jupiter:junit-jupiter-engine:$junitVersion")

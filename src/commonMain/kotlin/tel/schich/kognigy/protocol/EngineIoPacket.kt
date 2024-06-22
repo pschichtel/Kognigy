@@ -1,13 +1,12 @@
 package tel.schich.kognigy.protocol
 
-import io.ktor.websocket.Frame
-import io.ktor.websocket.readText
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import tel.schich.kognigy.Frame
 
 class PongTimeoutException(message: String) : CancellationException(message)
 class PingTimeoutException(message: String) : CancellationException(message)
@@ -74,7 +73,7 @@ sealed interface EngineIoPacket {
 
     companion object {
         fun decode(json: Json, frame: Frame.Text): EngineIoPacket {
-            val message = frame.readText()
+            val message = frame.text
             if (message.isEmpty()) {
                 return Error(message, "empty message", null)
             }
@@ -102,7 +101,7 @@ sealed interface EngineIoPacket {
             is Ping -> Frame.Text("2probe")
             is Pong -> Frame.Text("3probe")
             is TextMessage -> Frame.Text("4${packet.message}")
-            is BinaryMessage -> Frame.Binary(true, packet.data.data)
+            is BinaryMessage -> Frame.Binary(packet.data.data)
             is Upgrade -> Frame.Text("5")
             is Noop -> Frame.Text("6")
             is Error -> Frame.Text(packet.data)

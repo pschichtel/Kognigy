@@ -96,7 +96,7 @@ class Kognigy(
             }
         }
 
-        val outputs = Channel<CognigyEvent.OutputEvent>()
+        val outputs = Channel<CognigyEvent.OutputEvent>(Channel.UNLIMITED)
         val onSocketIoConnected = CompletableDeferred<Unit>()
         val scope = CoroutineScope(Job())
         val connection = KognigyConnection(session, outputs, scope, wsSession, json, onSocketIoConnected)

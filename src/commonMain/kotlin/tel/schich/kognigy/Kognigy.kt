@@ -13,15 +13,13 @@ import io.ktor.http.encodedPath
 import io.ktor.http.isSecure
 import io.ktor.utils.io.core.String
 import io.ktor.websocket.Frame
-import kotlinx.coroutines.CancellationException
+import io.ktor.websocket.WebSocketSession
+import io.ktor.websocket.close
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
@@ -33,6 +31,9 @@ import tel.schich.kognigy.protocol.SocketIoPacket
 
 class EarlyDisconnectException :
     Exception("The session got disconnected before receiving anything! Check your configuration!")
+
+class UnableToConnectException(cause: TimeoutCancellationException) :
+    Exception("The connection could not be established with the configured connect timeout!", cause)
 
 private val receiveJobName = CoroutineName("kognigy-receive-job")
 
@@ -49,7 +50,7 @@ class Kognigy(
      * * `n < 0`: never assume ready
      */
     @Deprecated(message = "This should not be used", level = DeprecationLevel.WARNING)
-    private val endpointReadyTimeoutOfShameMillis: Long = 0,
+    private val endpointReadyTimeoutOfShameMillis: Long = 50,
 ) {
     private val json = Json {
         encodeDefaults = true
@@ -98,44 +99,44 @@ class Kognigy(
 
         val outputs = Channel<CognigyEvent.OutputEvent>(Channel.UNLIMITED)
         val onSocketIoConnected = CompletableDeferred<Unit>()
-        val scope = CoroutineScope(Job())
-        val connection = KognigyConnection(session, outputs, scope, wsSession, json, onSocketIoConnected)
+        val connection = KognigyConnection(session, outputs, wsSession, json, onSocketIoConnected)
 
-        // Never directly cancel this job, it will naturally terminate once the websocket session is closed
-        //  and all messages have been consumed
-        val receiveJob = scope.launch(receiveJobName) {
-            if (!wsSession.isActive) {
-                // the websocket became inactive before the first receive attempt
-                onSocketIoConnected.completeExceptionally(EarlyDisconnectException())
-                return@launch
-            }
-            wsSession.incoming.consumeEach { frame ->
-                processWebsocketFrame(frame, connection)?.let {
+        wsSession.launch(receiveJobName) {
+            while (true) {
+                val result = wsSession.incoming.receiveCatching()
+                if (result.isClosed) {
+                    outputs.close(result.exceptionOrNull())
+                    break
+                }
+                processWebsocketFrame(result.getOrThrow(), connection)?.let {
                     outputs.send(it)
                 }
             }
         }
 
-        receiveJob.invokeOnCompletion { cause ->
-            // propagate the completion to the websocket
-            when (cause) {
-                null -> wsSession.cancel()
-                is CancellationException -> wsSession.cancel(cause)
-                else -> wsSession.cancel(CancellationException("The receive job completed with an error!", cause))
-            }
+        try {
+            awaitConnected(wsSession, onSocketIoConnected)
+        } catch (e: Throwable) {
+            onSocketIoConnected.completeExceptionally(e)
+            outputs.close(e)
+            wsSession.close()
+            throw e
         }
 
+        return connection
+    }
+
+    private suspend fun awaitConnected(wsSession: WebSocketSession, onSocketIoConnected: Deferred<Unit>) {
+        if (!wsSession.isActive) {
+            throw EarlyDisconnectException()
+        }
         try {
             withTimeout(connectTimeoutMillis) {
                 onSocketIoConnected.await()
             }
         } catch (e: TimeoutCancellationException) {
-            logger.warn { "Timed out while waiting for socket.io's connected event after ${connectTimeoutMillis}ms!" }
-            wsSession.cancel(e)
-            throw e
+            throw UnableToConnectException(e)
         }
-
-        return connection
     }
 
     private suspend fun processWebsocketFrame(

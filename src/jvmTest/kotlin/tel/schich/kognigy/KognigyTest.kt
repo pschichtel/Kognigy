@@ -6,6 +6,7 @@ import io.ktor.client.engine.config
 import io.ktor.client.engine.http
 import io.ktor.client.engine.java.Java
 import io.ktor.http.Url
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -58,13 +59,11 @@ class KognigyTest {
         return Kognigy(configuredEngine, endpointReadyTimeoutOfShameMillis = endpointReadyTimeoutOfShame)
     }
 
-    private suspend fun runTest(
+    private inline fun withKognigy(
         kognigy: Kognigy = defaultKognigy(),
         sessionId: SessionId? = null,
         userId: UserId? = null,
-        delay: Long = 3000,
-        iterations: Int = 5,
-        newPayload: () -> Pair<String, JsonElement?>,
+        block: (Kognigy, KognigySession) -> Unit,
     ) {
         val uri = Url(System.getenv(ENDPOINT_URL_ENV))
         val token = System.getenv(ENDPOINT_TOKEN_ENV)
@@ -79,6 +78,17 @@ class KognigyTest {
             ChannelName("kognigy"),
         )
 
+        block(kognigy, session)
+    }
+
+    private suspend fun runTest(
+        kognigy: Kognigy = defaultKognigy(),
+        sessionId: SessionId? = null,
+        userId: UserId? = null,
+        delay: Long = 3000,
+        iterations: Int = 5,
+        newPayload: () -> Pair<String, JsonElement?>,
+    ) = withKognigy(kognigy, sessionId, userId) { _, session ->
 //        logger.info { "Session: $session" }
 
         val connection = kognigy.connect(session)
@@ -208,6 +218,45 @@ class KognigyTest {
                 runTest(userId = UserId("")) {
                     "Some text! ${randomUUID()}" to null
                 }
+            }
+        }
+    }
+
+    @EnabledIfEnvironmentVariables(
+        EnabledIfEnvironmentVariable(named = ENDPOINT_URL_ENV, matches = ".*"),
+        EnabledIfEnvironmentVariable(named = ENDPOINT_TOKEN_ENV, matches = ".*"),
+    )
+    @Test
+    fun properlyCloses() {
+        runBlocking(Dispatchers.IO) {
+            withKognigy { kognigy, session ->
+                val connection = kognigy.connect(session)
+
+                val deferredMessage = CompletableDeferred<CognigyEvent.Output.Message>()
+                val receiveJob = launch {
+                    while (true) {
+                        val result = connection.output.receiveCatching()
+                        if (result.isClosed) {
+                            break
+                        }
+                        result.getOrThrow().let {
+                            if (it is CognigyEvent.Output.Message) {
+                                deferredMessage.complete(it)
+                            }
+                        }
+                    }
+                    logger.info { "Exited!" }
+                }
+
+                connection.sendInput(text = "test")
+                delay(timeMillis = 500)
+                connection.close()
+                logger.info { "Closed!" }
+
+                assertEquals("you said \"test\"\ndata was \"{}\"", deferredMessage.await().data.text)
+
+                logger.info { "Awaiting loop receiveJob completion..." }
+                receiveJob.join()
             }
         }
     }

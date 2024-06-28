@@ -5,6 +5,7 @@ import io.ktor.client.engine.ProxyBuilder
 import io.ktor.client.engine.config
 import io.ktor.client.engine.http
 import io.ktor.client.engine.java.Java
+import io.ktor.http.URLBuilder
 import io.ktor.http.Url
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
@@ -65,7 +66,9 @@ class KognigyTest {
         userId: UserId? = null,
         block: (Kognigy, KognigySession) -> Unit,
     ) {
-        val uri = Url(System.getenv(ENDPOINT_URL_ENV))
+        val uri = URLBuilder(Url(System.getenv(ENDPOINT_URL_ENV))).apply {
+            parameters.append("kognigy-unit-test", "true")
+        }.build()
         val token = System.getenv(ENDPOINT_TOKEN_ENV)
 
         val randomId = randomUUID().toString()

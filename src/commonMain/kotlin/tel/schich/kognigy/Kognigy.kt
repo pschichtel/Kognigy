@@ -11,6 +11,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.URLProtocol
 import io.ktor.http.encodedPath
 import io.ktor.http.isSecure
+import io.ktor.http.takeFrom
 import io.ktor.utils.io.core.String
 import io.ktor.websocket.Frame
 import io.ktor.websocket.WebSocketSession
@@ -82,11 +83,10 @@ class Kognigy(
         val wsSession = client.webSocketSession {
             method = HttpMethod.Get
             url {
+                takeFrom(url)
                 protocol =
                     if (url.protocol.isSecure()) URLProtocol.WSS
                     else URLProtocol.WS
-                host = url.host
-                port = url.port
                 encodedPath = "/socket.io/"
                 parameters.append("EIO", "3")
                 parameters.append("transport", "websocket")

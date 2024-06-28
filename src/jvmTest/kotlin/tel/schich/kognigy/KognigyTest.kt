@@ -57,7 +57,7 @@ class KognigyTest {
         val configuredEngine = engine.config {
             this.proxy = proxy
         }
-        return Kognigy(configuredEngine, endpointReadyTimeoutOfShameMillis = endpointReadyTimeoutOfShame)
+        return Kognigy(configuredEngine, endpointReadyTimeoutMillis = endpointReadyTimeoutOfShame)
     }
 
     private inline fun withKognigy(

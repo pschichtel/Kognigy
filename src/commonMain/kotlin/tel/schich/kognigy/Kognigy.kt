@@ -50,8 +50,7 @@ class Kognigy(
      * * `n = 0`: immediately assume ready
      * * `n < 0`: never assume ready
      */
-    @Deprecated(message = "This should not be used", level = DeprecationLevel.WARNING)
-    private val endpointReadyTimeoutOfShameMillis: Long = 50,
+    private val endpointReadyTimeoutMillis: Long = -1,
 ) {
     private val json = Json {
         encodeDefaults = true
@@ -98,8 +97,7 @@ class Kognigy(
         }
 
         val outputs = Channel<CognigyEvent.OutputEvent>(Channel.UNLIMITED)
-        val onSocketIoConnected = CompletableDeferred<Unit>()
-        val connection = KognigyConnection(session, outputs, wsSession, json, onSocketIoConnected)
+        val connection = KognigyConnection(session, outputs, wsSession, json)
 
         wsSession.launch(receiveJobName) {
             while (true) {
@@ -115,9 +113,9 @@ class Kognigy(
         }
 
         try {
-            awaitConnected(wsSession, onSocketIoConnected)
+            awaitConnected(wsSession, connection.connectionSuccessReason)
         } catch (e: Throwable) {
-            onSocketIoConnected.completeExceptionally(e)
+            connection.onConnectError(e)
             outputs.close(e)
             wsSession.close()
             throw e
@@ -126,7 +124,7 @@ class Kognigy(
         return connection
     }
 
-    private suspend fun awaitConnected(wsSession: WebSocketSession, onSocketIoConnected: Deferred<Unit>) {
+    private suspend fun awaitConnected(wsSession: WebSocketSession, onSocketIoConnected: Deferred<*>) {
         if (!wsSession.isActive) {
             throw EarlyDisconnectException()
         }
@@ -204,9 +202,8 @@ class Kognigy(
         when (packet) {
             is SocketIoPacket.Connect -> {
                 logger.trace { "socket.io connect: ${packet.data}" }
-                @Suppress("DEPRECATION")
-                connection.setupEndpointReadyTimeout(endpointReadyTimeoutOfShameMillis) {
-                    logger.warn { "The endpoint did not become ready within $endpointReadyTimeoutOfShameMillis ms, assuming it's ready..." }
+                connection.setupEndpointReadyTimeout(endpointReadyTimeoutMillis) {
+                    logger.warn { "The endpoint did not become ready within $endpointReadyTimeoutMillis ms, assuming it's ready..." }
                 }
             }
             is SocketIoPacket.ConnectError -> logger.error {
@@ -218,7 +215,7 @@ class Kognigy(
             is SocketIoPacket.Event -> when (val event = CognigyEvent.decode(json, packet)) {
                 is CognigyEvent.OutputEvent -> return event
                 is CognigyEvent.EndpointReady -> {
-                    connection.onConnectionReady()
+                    connection.onEndpointReady()
                 }
                 is CognigyEvent.ProcessInput -> {}
             }

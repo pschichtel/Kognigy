@@ -6,6 +6,7 @@ import io.ktor.websocket.close
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
@@ -25,16 +26,25 @@ private val pingJobName = CoroutineName("kognigy-ping-job")
 private val pongTimeoutJobName = CoroutineName("kognigy-pong-timeout-job")
 private val endpointReadyTimeoutJobName = CoroutineName("kognigy-endpoint-ready-timeout-job")
 
+enum class ConnectionSuccessReason {
+    ENDPOINT_READY_SIGNAL,
+    ASSUMED_READY_WITH_TIMEOUT,
+    ASSUMED_READY_WITHOUT_TIMEOUT,
+}
+
 class KognigyConnection(
     val session: KognigySession,
     val output: ReceiveChannel<CognigyEvent.OutputEvent>,
     private val wsSession: WebSocketSession,
     private val json: Json,
-    private val socketIoConnected: CompletableDeferred<Unit>,
 ) {
+    private val connectionSuccessReasonPromise = CompletableDeferred<ConnectionSuccessReason>()
     private var pingTimer: Job? = null
     private var pongTimeout: Job? = null
     private var endpointReadyTimeout: Job? = null
+
+    val connectionSuccessReason: Deferred<ConnectionSuccessReason>
+        get() = connectionSuccessReasonPromise
 
     internal suspend fun setupPingTimer(intervalMillis: Long, timeoutMillis: Long) {
         // repeated open-events will just reset the timer
@@ -42,7 +52,7 @@ class KognigyConnection(
         val timeoutMessage = "engine.io pong didn't arrive for $timeoutMillis ms!"
 
         suspend fun fail(reason: CancellationException) {
-            socketIoConnected.completeExceptionally(reason)
+            connectionSuccessReasonPromise.completeExceptionally(reason)
             wsSession.close()
         }
 
@@ -67,8 +77,8 @@ class KognigyConnection(
         }
     }
 
-    private fun completeConnection() {
-        socketIoConnected.complete(Unit)
+    private fun completeConnection(reason: ConnectionSuccessReason) {
+        connectionSuccessReasonPromise.complete(reason)
     }
 
     internal fun setupEndpointReadyTimeout(delayMillis: Long, block: suspend () -> Unit) {
@@ -77,19 +87,23 @@ class KognigyConnection(
             return
         }
         if (delayMillis == 0L) {
-            completeConnection()
+            completeConnection(ConnectionSuccessReason.ASSUMED_READY_WITHOUT_TIMEOUT)
             return
         }
         endpointReadyTimeout = wsSession.launch(endpointReadyTimeoutJobName) {
             delay(delayMillis)
-            completeConnection()
+            completeConnection(ConnectionSuccessReason.ASSUMED_READY_WITH_TIMEOUT)
             block()
         }
     }
 
-    internal fun onConnectionReady() {
+    internal fun onEndpointReady() {
         endpointReadyTimeout?.cancel()
-        completeConnection()
+        completeConnection(ConnectionSuccessReason.ENDPOINT_READY_SIGNAL)
+    }
+
+    internal fun onConnectError(cause: Throwable) {
+        connectionSuccessReasonPromise.completeExceptionally(cause)
     }
 
     internal fun onPong() {

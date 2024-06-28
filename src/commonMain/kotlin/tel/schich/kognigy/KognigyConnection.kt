@@ -37,6 +37,7 @@ class KognigyConnection(
     val output: ReceiveChannel<CognigyEvent.OutputEvent>,
     private val wsSession: WebSocketSession,
     private val json: Json,
+    val endpointReadyTimeoutMillis: Long,
 ) {
     private val connectionSuccessReasonPromise = CompletableDeferred<ConnectionSuccessReason>()
     private var pingTimer: Job? = null
@@ -81,19 +82,19 @@ class KognigyConnection(
         connectionSuccessReasonPromise.complete(reason)
     }
 
-    internal fun setupEndpointReadyTimeout(delayMillis: Long, block: suspend () -> Unit) {
+    internal fun setupEndpointReadyTimeout() {
         endpointReadyTimeout?.cancel()
-        if (delayMillis < 0) {
-            return
-        }
-        if (delayMillis == 0L) {
-            completeConnection(ConnectionSuccessReason.ASSUMED_READY_WITHOUT_TIMEOUT)
-            return
-        }
-        endpointReadyTimeout = wsSession.launch(endpointReadyTimeoutJobName) {
-            delay(delayMillis)
-            completeConnection(ConnectionSuccessReason.ASSUMED_READY_WITH_TIMEOUT)
-            block()
+        when {
+            endpointReadyTimeoutMillis < 0 -> {}
+            endpointReadyTimeoutMillis == 0L -> {
+                completeConnection(ConnectionSuccessReason.ASSUMED_READY_WITHOUT_TIMEOUT)
+            }
+            else -> {
+                endpointReadyTimeout = wsSession.launch(endpointReadyTimeoutJobName) {
+                    delay(endpointReadyTimeoutMillis)
+                    completeConnection(ConnectionSuccessReason.ASSUMED_READY_WITH_TIMEOUT)
+                }
+            }
         }
     }
 

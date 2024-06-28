@@ -72,7 +72,10 @@ class Kognigy(
         }
     }
 
-    suspend fun connect(session: KognigySession): KognigyConnection {
+    suspend fun connect(
+        session: KognigySession,
+        endpointReadyTimeoutMillis: Long = this.endpointReadyTimeoutMillis,
+    ): KognigyConnection {
         val url = session.endpoint
 
         require(url.protocol == URLProtocol.HTTP || url.protocol == URLProtocol.HTTPS) {
@@ -97,7 +100,7 @@ class Kognigy(
         }
 
         val outputs = Channel<CognigyEvent.OutputEvent>(Channel.UNLIMITED)
-        val connection = KognigyConnection(session, outputs, wsSession, json)
+        val connection = KognigyConnection(session, outputs, wsSession, json, endpointReadyTimeoutMillis)
 
         wsSession.launch(receiveJobName) {
             while (true) {
@@ -202,9 +205,7 @@ class Kognigy(
         when (packet) {
             is SocketIoPacket.Connect -> {
                 logger.trace { "socket.io connect: ${packet.data}" }
-                connection.setupEndpointReadyTimeout(endpointReadyTimeoutMillis) {
-                    logger.warn { "The endpoint did not become ready within $endpointReadyTimeoutMillis ms, assuming it's ready..." }
-                }
+                connection.setupEndpointReadyTimeout()
             }
             is SocketIoPacket.ConnectError -> logger.error {
                 "socket.io connectError: ${packet.data}"

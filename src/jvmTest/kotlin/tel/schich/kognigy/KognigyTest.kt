@@ -24,6 +24,9 @@ import mu.KotlinLogging
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariables
+import tel.schich.kognigy.ConnectionSuccessReason.ASSUMED_READY_WITHOUT_TIMEOUT
+import tel.schich.kognigy.ConnectionSuccessReason.ASSUMED_READY_WITH_TIMEOUT
+import tel.schich.kognigy.ConnectionSuccessReason.ENDPOINT_READY_SIGNAL
 import tel.schich.kognigy.protocol.ChannelName
 import tel.schich.kognigy.protocol.CognigyEvent
 import tel.schich.kognigy.protocol.EndpointToken
@@ -92,12 +95,17 @@ class KognigyTest {
         iterations: Int = 5,
         newPayload: () -> Pair<String, JsonElement?>,
     ) = withKognigy(kognigy, sessionId, userId) { _, session ->
-//        logger.info { "Session: $session" }
+        logger.info { "Session: $session" }
 
         val connection = kognigy.connect(session)
+        when (connection.connectionSuccessReason.await()) {
+            ENDPOINT_READY_SIGNAL -> logger.info { "Connection became ready due to endpoint-ready event" }
+            ASSUMED_READY_WITH_TIMEOUT -> logger.info { "Connection became ready after timeout" }
+            ASSUMED_READY_WITHOUT_TIMEOUT -> logger.info { "Connection became ready immediately" }
+        }
 
         suspend fun sendInput(input: Pair<String, JsonElement?>) {
-//            logger.info { "Input: $input" }
+            logger.info { "Input: $input" }
             connection.sendInput(input.first, input.second)
         }
 
@@ -126,7 +134,7 @@ class KognigyTest {
                 } catch (e: TimeoutCancellationException) {
                     fail("Receive timed out!", e)
                 }
-//                logger.info { "Received Event: $event" }
+                logger.info { "Received Event: $event" }
                 if (event !is CognigyEvent.Output.Message) {
                     continue
                 }

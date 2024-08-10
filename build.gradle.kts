@@ -16,7 +16,7 @@ version = "3.5.1"
 
 val ktorVersion = "2.3.12"
 val coroutinesVersion = "1.8.1"
-val serializationVersion = "1.7.0"
+val serializationVersion = "1.7.1"
 
 
 tasks.withType<Test> {
@@ -83,7 +83,7 @@ kotlin {
 
         getByName("jvmTest") {
             dependencies {
-                val junitVersion = "5.10.2"
+                val junitVersion = "5.10.3"
                 implementation("io.ktor:ktor-client-java:$ktorVersion")
                 implementation(kotlin("test"))
                 implementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")

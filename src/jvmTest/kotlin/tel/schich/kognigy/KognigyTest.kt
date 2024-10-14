@@ -195,7 +195,7 @@ class KognigyTest {
                         }
                     }
                     if (iteration % 10 == 0) {
-                        logger.info("######## $iteration. iteration, $activeRuns active runs")
+                        logger.info { "######## $iteration. iteration, $activeRuns active runs" }
                     }
                     delay(timeMillis = 50)
                 }

@@ -12,11 +12,11 @@ plugins {
 }
 
 group = "tel.schich"
-version = "3.5.1"
+version = "3.6.0-SNAPSHOT"
 
-val ktorVersion = "2.3.12"
-val coroutinesVersion = "1.8.1"
-val serializationVersion = "1.7.1"
+val ktorVersion = "3.0.0"
+val coroutinesVersion = "1.9.0"
+val serializationVersion = "1.7.3"
 
 
 tasks.withType<Test> {
@@ -70,7 +70,7 @@ kotlin {
                 implementation("io.ktor:ktor-client-websockets:$ktorVersion")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
                 api("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
-                implementation("io.github.microutils:kotlin-logging:3.0.5")
+                implementation("io.github.oshai:kotlin-logging:7.0.0")
             }
         }
 
@@ -83,12 +83,12 @@ kotlin {
 
         getByName("jvmTest") {
             dependencies {
-                val junitVersion = "5.10.3"
+                val junitVersion = "5.11.2"
                 implementation("io.ktor:ktor-client-java:$ktorVersion")
                 implementation(kotlin("test"))
                 implementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
                 implementation("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
-                implementation("ch.qos.logback:logback-classic:1.5.6")
+                implementation("ch.qos.logback:logback-classic:1.5.10")
             }
         }
     }

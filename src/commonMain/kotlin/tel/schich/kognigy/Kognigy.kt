@@ -1,5 +1,6 @@
 package tel.schich.kognigy
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.engine.ProxyConfig
@@ -12,7 +13,6 @@ import io.ktor.http.URLProtocol
 import io.ktor.http.encodedPath
 import io.ktor.http.isSecure
 import io.ktor.http.takeFrom
-import io.ktor.utils.io.core.String
 import io.ktor.websocket.Frame
 import io.ktor.websocket.WebSocketSession
 import io.ktor.websocket.close
@@ -24,7 +24,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
-import mu.KotlinLogging
 import tel.schich.kognigy.protocol.CognigyEvent
 import tel.schich.kognigy.protocol.EngineIoPacket
 import tel.schich.kognigy.protocol.SocketIoPacket
@@ -143,7 +142,7 @@ class Kognigy(
         frame: Frame,
         connection: KognigyConnection,
     ): CognigyEvent.OutputEvent? {
-        logger.trace { "Frame: " + String(frame.data) }
+        logger.trace { "Frame: " + frame.data.decodeToString() }
         when (frame) {
             is Frame.Text -> return processEngineIoPacket(frame, connection)
             is Frame.Binary -> logger.warn { "websocket binary, unable to process binary data: $frame" }

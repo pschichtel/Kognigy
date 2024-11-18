@@ -231,7 +231,7 @@ sealed interface CognigyEvent {
          * encoded here.
          */
         private inline fun <reified T : Any> data(json: Json, name: String, event: T) =
-            SocketIoPacket.Event(null, null, name, listOf(json.encodeToJsonElement(event)))
+            SocketIoPacket.Event("/", null, name, listOf(json.encodeToJsonElement(event)))
 
         fun encode(json: Json, event: EncodableEvent): SocketIoPacket = when (event) {
             is ProcessInput -> data(json, ProcessInput.NAME, event)

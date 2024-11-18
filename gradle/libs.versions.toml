@@ -8,6 +8,7 @@ kotlinxCoroutines = "1.9.0"
 kotlinxSerialization = "1.7.3"
 kotlinLogging = "7.0.0"
 logbackClassic = "1.5.10"
+parserKombinator = "0.3.0"
 
 [libraries]
 ktorBom = { module = "io.ktor:ktor-bom", version.ref="ktor" }
@@ -20,6 +21,7 @@ kotlinxCoroutinesCore = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-cor
 kotlinxSerializationJson = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json" }
 kotlinLogging = { module = "io.github.oshai:kotlin-logging", version.ref = "kotlinLogging" }
 logbackClassic = { module = "ch.qos.logback:logback-classic", version.ref = "logbackClassic" }
+parserKombinator = { module = "tel.schich:parser-kombinator", version.ref = "parserKombinator" }
 
 [plugins]
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

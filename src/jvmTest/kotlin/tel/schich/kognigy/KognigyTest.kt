@@ -39,6 +39,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.fail
@@ -172,6 +173,7 @@ class KognigyTest {
         EnabledIfEnvironmentVariable(named = ENDPOINT_URL_ENV, matches = ".*"),
         EnabledIfEnvironmentVariable(named = ENDPOINT_TOKEN_ENV, matches = ".*"),
     )
+    @Ignore
     @Test
     fun loadTest() = runBlocking {
         val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()

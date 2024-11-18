@@ -57,6 +57,7 @@ kotlin {
                 implementation(project.dependencies.platform(libs.ktorBom))
                 implementation(project.dependencies.platform(libs.kotlinxCoroutinesBom))
                 implementation(project.dependencies.platform(libs.kotlinxSerializationBom))
+                implementation(libs.parserKombinator)
                 api(libs.ktorClientCore)
                 api(libs.ktorClientWebsockets)
                 api(libs.kotlinxCoroutinesCore)

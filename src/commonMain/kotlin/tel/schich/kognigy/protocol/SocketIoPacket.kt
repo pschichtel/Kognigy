@@ -1,6 +1,5 @@
 package tel.schich.kognigy.protocol
 
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -10,8 +9,17 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
+import tel.schich.parserkombinator.ParserResult.Error
+import tel.schich.parserkombinator.ParserResult.Ok
+import tel.schich.parserkombinator.StringSlice
+import tel.schich.parserkombinator.andThenIgnore
+import tel.schich.parserkombinator.concat
+import tel.schich.parserkombinator.flatMap
+import tel.schich.parserkombinator.map
+import tel.schich.parserkombinator.optional
+import tel.schich.parserkombinator.parseEntirely
+import tel.schich.parserkombinator.take
+import tel.schich.parserkombinator.takeWhile
 
 /**
  * Based on: [github.com/socketio/socket.io-protocol](https://github.com/socketio/socket.io-protocol)
@@ -19,79 +27,50 @@ import kotlinx.serialization.json.jsonObject
 sealed interface SocketIoPacket {
 
     sealed interface Namespaced {
-        val namespace: String?
+        val namespace: String
     }
 
     data class Connect(
-        override val namespace: String?,
+        override val namespace: String,
         val data: JsonObject?,
-    ) : SocketIoPacket, Namespaced {
-        companion object {
-            val Format = """^(?:([^,]+),)?(\{.*})?$""".toRegex()
-        }
-    }
+    ) : SocketIoPacket, Namespaced
 
     data class Disconnect(
-        override val namespace: String?,
-    ) : SocketIoPacket, Namespaced {
-        companion object {
-            val Format = """^(?:([^,]+),)?""".toRegex()
-        }
-    }
+        override val namespace: String,
+    ) : SocketIoPacket, Namespaced
 
     data class Event(
-        override val namespace: String?,
+        override val namespace: String,
         val acknowledgeId: Int?,
         val name: String,
         val arguments: List<JsonElement>,
-    ) : SocketIoPacket, Namespaced {
-        companion object {
-            val Format = """^(?:([^,]+),)?(\d+)?(\[.*])$""".toRegex()
-        }
-    }
+    ) : SocketIoPacket, Namespaced
 
     data class Acknowledge(
-        override val namespace: String?,
+        override val namespace: String,
         val acknowledgeId: Int,
         val data: JsonArray?,
-    ) : SocketIoPacket, Namespaced {
-        companion object {
-            val Format = """^(?:([^,]+),)?(\d+)(\[.*])?$""".toRegex()
-        }
-    }
+    ) : SocketIoPacket, Namespaced
 
     data class ConnectError(
-        override val namespace: String?,
+        override val namespace: String,
         val data: Data?,
     ) : SocketIoPacket, Namespaced {
-
         data class Data(val message: String, val data: JsonElement?)
-
-        companion object {
-            val Format = """^(?:([^,]+),)?(.+)?$""".toRegex()
-        }
     }
 
     data class BinaryEvent(
-        override val namespace: String?,
+        override val namespace: String,
         val acknowledgeId: Int?,
         val name: String,
         val data: Data,
-    ) : SocketIoPacket, Namespaced {
-        companion object {
-            val Format = """^(?:([^,]+),)?(\d+)?(\[.*])?$""".toRegex()
-        }
-    }
+    ) : SocketIoPacket, Namespaced
 
     data class BinaryAcknowledge(
-        override val namespace: String?,
+        override val namespace: String,
         val acknowledgeId: Int,
         val data: Data?,
-    ) : SocketIoPacket, Namespaced {
-        companion object {
-            val Format = """^(?:([^,]+),)?(\d+)?(\[.*])?$""".toRegex()
-        }
-    }
+    ) : SocketIoPacket, Namespaced
 
     data class BrokenPacket(
         val packet: String,
@@ -102,19 +81,34 @@ sealed interface SocketIoPacket {
     companion object {
         fun decode(json: Json, packet: EngineIoPacket.TextMessage): SocketIoPacket {
             val message = packet.message
+            println("Message: $message")
             if (message.isEmpty()) {
                 return BrokenPacket(message, "empty message", null)
             }
+            val rawEvent = when (val result = socketIoParser(StringSlice.of(message))) {
+                is Ok<RawSocketIoFrame> -> result.value
+                is Error -> {
+                    return BrokenPacket(
+                        message,
+                        "Failed to parse event: ${result.message}, remaining: $result.rest",
+                        t = null,
+                    )
+                }
+            }
 
-            return when (val type = message[0]) {
-                '0' -> decodeConnect(message, json)
-                '1' -> decodeDisconnect(message)
-                '2' -> decodeEvent(message, json)
-                '3' -> decodeAck(message, json)
-                '4' -> decodeConnectError(message, json)
-                '5' -> TODO("currently not needed")
-                '6' -> TODO("currently not needed")
-                else -> BrokenPacket(message, "unknown packet type: $type", null)
+            return when (rawEvent.type) {
+                0 -> decodeConnect(message, rawEvent, json)
+                1 -> decodeDisconnect(rawEvent)
+                2 -> decodeEvent(message, rawEvent, json)
+                3 -> decodeAck(message, rawEvent, json)
+                4 -> decodeConnectError(message, rawEvent, json)
+                5 -> TODO("currently not needed")
+                6 -> TODO("currently not needed")
+                else -> BrokenPacket(
+                    message,
+                    "unknown packet type: ${rawEvent.type}",
+                    t = null,
+                )
             }
         }
 
@@ -186,57 +180,89 @@ private fun encodePacket(
     return EngineIoPacket.TextMessage(message)
 }
 
-private fun matchFormat(
-    message: String,
-    format: Regex,
-    block: (MatchResult.Destructured) -> SocketIoPacket,
-): SocketIoPacket {
-    val match = format.matchEntire(message.substring(1))
-    return if (match == null) SocketIoPacket.BrokenPacket(message, "did not match packet format", null)
-    else try {
-        block(match.destructured)
-    } catch (e: SerializationException) {
-        SocketIoPacket.BrokenPacket(message, "data failed to parse as JSON", e)
+data class RawSocketIoFrame(
+    val namespace: String,
+    val type: Int,
+    val acknowledgmentId: Int?,
+    val payload: String,
+)
+
+internal val jsonContainerOrStringFirstSet = setOf('[', '{', '"')
+internal val typeParser = take { it.isDigit() }
+    .map { it.toString().toInt() }
+internal val numberOfBinaryAttachmentsParser = takeWhile(min = 1) { it.isDigit() }.andThenIgnore(take('-'))
+    .map { it.toString().toInt() }
+internal val namespaceParser = take('/').concat(takeWhile(min = 1) { it != ',' && it !in jsonContainerOrStringFirstSet }).andThenIgnore(take(','))
+internal val acknowledgmentIdParser = takeWhile(min = 1) { it !in jsonContainerOrStringFirstSet }
+    .map { it.toString().toInt() }
+internal val payloadParser = takeWhile { true }
+internal val socketIoParser = parseEntirely(typeParser.flatMap { type ->
+    numberOfBinaryAttachmentsParser.optional().flatMap {
+        namespaceParser.optional().flatMap { namespace ->
+            acknowledgmentIdParser.optional().flatMap { acknowledgmentId ->
+                payloadParser.map { payload ->
+                    RawSocketIoFrame(
+                        namespace?.toString() ?: "/",
+                        type,
+                        acknowledgmentId,
+                        payload.toString(),
+                    )
+                }
+            }
+        }
     }
-}
+})
 
 private fun decodeConnect(
     message: String,
+    rawEvent: RawSocketIoFrame,
     json: Json,
-) = matchFormat(message, SocketIoPacket.Connect.Format) { (namespaceStr, dataStr) ->
-    val namespace = namespaceStr.ifEmpty { null }
-    // directly accessing the JSON as an object is safe here, since the regex makes sure this is
-    // an object if it actually parses
-    val data = if (dataStr.isEmpty()) null else json.parseToJsonElement(dataStr).jsonObject
+): SocketIoPacket {
+    val data = if (rawEvent.payload.isEmpty()) {
+        null
+    } else {
+        val data = json.parseToJsonElement(rawEvent.payload)
+        if (data !is JsonObject) {
+            return SocketIoPacket.BrokenPacket(
+                message,
+                "Connect expects a JSON object or no payload at all!",
+                t = null,
+            )
+        }
+        data
+    }
 
-    SocketIoPacket.Connect(namespace, data)
+    return SocketIoPacket.Connect(rawEvent.namespace, data)
 }
 
 private fun decodeDisconnect(
-    message: String,
-) = matchFormat(message, SocketIoPacket.Disconnect.Format) { (namespaceStr) ->
-    val namespace = namespaceStr.ifEmpty { null }
-
-    SocketIoPacket.Disconnect(namespace)
+    rawEvent: RawSocketIoFrame,
+): SocketIoPacket {
+    return SocketIoPacket.Disconnect(rawEvent.namespace)
 }
 
 private fun decodeEvent(
     message: String,
+    rawEvent: RawSocketIoFrame,
     json: Json,
-) = matchFormat(message, SocketIoPacket.Event.Format) { (namespaceStr, acknowledgeIdStr, dataStr) ->
-    val namespace = namespaceStr.ifEmpty { null }
-    val acknowledgeId = acknowledgeIdStr.ifEmpty { null }?.toInt()
-    // directly accessing the JSON as an array is safe here, since the regex makes sure this is an
-    // array if it actually parses
-    val data = json.parseToJsonElement(dataStr).jsonArray
+): SocketIoPacket {
+    val data = json.parseToJsonElement(rawEvent.payload)
+    if (data !is JsonArray) {
+        return SocketIoPacket.BrokenPacket(
+            message,
+            "Events must have a JSON array as their payload!",
+            t = null,
+        )
+    }
+
     val name = data.firstOrNull()
 
-    when {
+    return when {
         name == null -> {
             SocketIoPacket.BrokenPacket(message, "events needs at least the event name in the data", null)
         }
         name is JsonPrimitive && name.isString -> {
-            SocketIoPacket.Event(namespace, acknowledgeId, name.content, data.drop(1))
+            SocketIoPacket.Event(rawEvent.namespace, rawEvent.acknowledgmentId, name.content, data.drop(1))
         }
         else -> {
             SocketIoPacket.BrokenPacket(message, "event name is not a string: $name", null)
@@ -246,36 +272,60 @@ private fun decodeEvent(
 
 private fun decodeAck(
     message: String,
+    rawEvent: RawSocketIoFrame,
     json: Json,
-) = matchFormat(message, SocketIoPacket.Acknowledge.Format) { (namespaceStr, acknowledgeIdStr, dataStr) ->
-    val namespace = namespaceStr.ifEmpty { null }
-    val acknowledgeId = acknowledgeIdStr.toInt()
+): SocketIoPacket {
     // directly accessing the JSON as an array is safe here, since the regex makes sure this is an
     // array if it actually parses
-    val data = dataStr.ifEmpty { null }?.let { json.parseToJsonElement(it).jsonArray }
+    val data = if (rawEvent.payload.isEmpty()) {
+        null
+    } else {
+        val data = json.parseToJsonElement(rawEvent.payload)
+        if (data !is JsonArray) {
+            return SocketIoPacket.BrokenPacket(
+                message,
+                "Acknowledgements must have a JSON array as data or no data at all!",
+                t = null,
+            )
+        }
+        data
+    }
 
-    SocketIoPacket.Acknowledge(namespace, acknowledgeId, data)
+    if (rawEvent.acknowledgmentId == null) {
+        return SocketIoPacket.BrokenPacket(
+            message,
+            "Acknowledgements must have an acknowledgmentId!",
+            t = null,
+        )
+    }
+
+
+    return SocketIoPacket.Acknowledge(rawEvent.namespace, rawEvent.acknowledgmentId, data)
 }
 
 private fun decodeConnectError(
     message: String,
+    rawEvent: RawSocketIoFrame,
     json: Json,
-) = matchFormat(message, SocketIoPacket.ConnectError.Format) { (namespaceStr, dataStr) ->
-    val namespace = namespaceStr.ifEmpty { null }
-    val data = dataStr.ifEmpty { null }?.let(json::parseToJsonElement)
+): SocketIoPacket {
+    val data = rawEvent.payload.ifEmpty { null }?.let(json::parseToJsonElement)
 
-    when {
+    return when {
         data == null -> {
-            SocketIoPacket.ConnectError(namespace, null)
+            SocketIoPacket.ConnectError(rawEvent.namespace, null)
         }
         data is JsonObject -> {
-            SocketIoPacket.ConnectError(namespace, json.decodeFromJsonElement(data))
+            SocketIoPacket.ConnectError(rawEvent.namespace, json.decodeFromJsonElement(data))
         }
         data is JsonPrimitive && data.isString -> {
-            SocketIoPacket.ConnectError(namespace, SocketIoPacket.ConnectError.Data(data.content, null))
+            SocketIoPacket.ConnectError(rawEvent.namespace, SocketIoPacket.ConnectError.Data(data.content, null))
         }
         else -> {
-            SocketIoPacket.BrokenPacket(message, "error data is neither an object nor a string", null)
+            SocketIoPacket.BrokenPacket(
+                message,
+                "error data is neither an object nor a string",
+                t = null,
+            )
         }
     }
 }

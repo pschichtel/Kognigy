@@ -136,6 +136,9 @@ class KognigyTest {
                     fail("Receive timed out!", e)
                 }
                 logger.info { "Received Event: $event" }
+                if (event is CognigyEvent.ProtocolError) {
+                    fail("Protocol error detected: $event")
+                }
                 if (event !is CognigyEvent.Output.Message) {
                     continue
                 }
@@ -166,6 +169,21 @@ class KognigyTest {
     fun cognigyConnectivity() {
         runBlocking {
             runTest { "Some text! ${randomUUID()}" to null }
+        }
+    }
+
+    /**
+     * The endpoint that is used here should be backed by a flow that simply reproduces a
+     * response for each input it gets.
+     */
+    @EnabledIfEnvironmentVariables(
+        EnabledIfEnvironmentVariable(named = ENDPOINT_URL_ENV, matches = ".*"),
+        EnabledIfEnvironmentVariable(named = ENDPOINT_TOKEN_ENV, matches = ".*"),
+    )
+    @Test
+    fun unicodeSymbols() {
+        runBlocking {
+            runTest(iterations = 1) { "Weird\u2028Symbol" to null }
         }
     }
 

@@ -149,7 +149,7 @@ class Kognigy(
         logger.trace { "Frame: " + frame.data.decodeToString() }
         when (frame) {
             is Frame.Text -> return processEngineIoPacket(frame, connection)
-            is Frame.Binary -> CognigyEvent.ProtocolError(
+            is Frame.Binary -> return CognigyEvent.ProtocolError(
                 subject = Websocket(frame),
                 message = "websocket binary, unable to process binary data: $frame",
                 t = null,
@@ -157,7 +157,7 @@ class Kognigy(
             is Frame.Close -> logger.trace { "websocket close: $frame" }
             is Frame.Ping -> logger.trace { "websocket ping: $frame" }
             is Frame.Pong -> logger.trace { "websocket pong: $frame" }
-            else -> CognigyEvent.ProtocolError(
+            else -> return CognigyEvent.ProtocolError(
                 subject = Websocket(frame),
                 message = "unknown websocket frame: $frame",
                 t = null,
@@ -199,7 +199,7 @@ class Kognigy(
             is EngineIoPacket.Noop -> logger.trace {
                 "engine.io noop"
             }
-            is EngineIoPacket.Error -> CognigyEvent.ProtocolError(
+            is EngineIoPacket.Error -> return CognigyEvent.ProtocolError(
                 subject = EngineIo(packet),
                 message = "received broken engine.io packet: ${packet.reason}, ${packet.data}",
                 t = packet.t,
@@ -244,7 +244,7 @@ class Kognigy(
             is SocketIoPacket.BinaryAcknowledge -> logger.trace {
                 "socket.io binary ack: id=${packet.acknowledgeId}, data=${packet.data?.toHexString()}"
             }
-            is SocketIoPacket.BrokenPacket -> CognigyEvent.ProtocolError(
+            is SocketIoPacket.BrokenPacket -> return CognigyEvent.ProtocolError(
                 subject = SocketIo(packet),
                 message = "received broken socket.io packet: ${packet.reason}, ${packet.packet}",
                 t = packet.t,

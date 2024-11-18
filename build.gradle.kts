@@ -2,7 +2,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
 
 plugins {
     signing
-    java
     `maven-publish`
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.kotlinKotlinxSerialization)
@@ -30,14 +29,8 @@ repositories {
     mavenCentral()
 }
 
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of("11"))
-        vendor.set(JvmVendorSpec.ADOPTIUM)
-    }
-}
-
 kotlin {
+    jvmToolchain(11)
     jvm {
         withJava()
         compilations.all {

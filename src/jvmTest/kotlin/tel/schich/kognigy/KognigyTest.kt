@@ -250,6 +250,7 @@ class KognigyTest {
                         if (result.isClosed) {
                             break
                         }
+                        logger.info { "Received: $result" }
                         result.getOrThrow().let {
                             if (it is CognigyEvent.Output.Message) {
                                 deferredMessage.complete(it)
@@ -260,7 +261,7 @@ class KognigyTest {
                 }
 
                 connection.sendInput(text = "test")
-                delay(timeMillis = 500)
+                delay(timeMillis = 1000)
                 connection.close()
                 logger.info { "Closed!" }
 

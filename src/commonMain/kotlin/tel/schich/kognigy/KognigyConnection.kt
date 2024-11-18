@@ -146,7 +146,7 @@ class KognigyConnection(
         send(event, flush)
     }
 
-    suspend fun send(event: CognigyEvent.InputEvent, flush: Boolean = false) {
+    suspend fun send(event: CognigyEvent.EncodableEvent, flush: Boolean = false) {
         send(SocketIoPacket.encode(json, CognigyEvent.encode(json, event)), flush)
     }
 

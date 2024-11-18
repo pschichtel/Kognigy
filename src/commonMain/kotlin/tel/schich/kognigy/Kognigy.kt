@@ -13,6 +13,7 @@ import io.ktor.http.URLProtocol
 import io.ktor.http.encodedPath
 import io.ktor.http.isSecure
 import io.ktor.http.takeFrom
+import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.WebSocketSession
 import io.ktor.websocket.close
@@ -25,6 +26,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import tel.schich.kognigy.protocol.CognigyEvent
+import tel.schich.kognigy.protocol.CognigyEvent.ProtocolError.Subject.EngineIo
+import tel.schich.kognigy.protocol.CognigyEvent.ProtocolError.Subject.SocketIo
+import tel.schich.kognigy.protocol.CognigyEvent.ProtocolError.Subject.Websocket
 import tel.schich.kognigy.protocol.EngineIoPacket
 import tel.schich.kognigy.protocol.SocketIoPacket
 
@@ -145,11 +149,19 @@ class Kognigy(
         logger.trace { "Frame: " + frame.data.decodeToString() }
         when (frame) {
             is Frame.Text -> return processEngineIoPacket(frame, connection)
-            is Frame.Binary -> logger.warn { "websocket binary, unable to process binary data: $frame" }
+            is Frame.Binary -> CognigyEvent.ProtocolError(
+                subject = Websocket(frame),
+                message = "websocket binary, unable to process binary data: $frame",
+                t = null,
+            )
             is Frame.Close -> logger.trace { "websocket close: $frame" }
             is Frame.Ping -> logger.trace { "websocket ping: $frame" }
             is Frame.Pong -> logger.trace { "websocket pong: $frame" }
-            else -> logger.error { "unknown websocket frame: $frame" }
+            else -> CognigyEvent.ProtocolError(
+                subject = Websocket(frame),
+                message = "unknown websocket frame: $frame",
+                t = null,
+            )
         }
         return null
     }
@@ -187,14 +199,16 @@ class Kognigy(
             is EngineIoPacket.Noop -> logger.trace {
                 "engine.io noop"
             }
-            is EngineIoPacket.Error -> logger.error(packet.t) {
-                "received broken engine.io packet: ${packet.reason}, ${packet.data}"
-            }
+            is EngineIoPacket.Error -> CognigyEvent.ProtocolError(
+                subject = EngineIo(packet),
+                message = "received broken engine.io packet: ${packet.reason}, ${packet.data}",
+                t = packet.t,
+            )
         }
         return null
     }
 
-    private fun processSocketIoPacket(
+    private suspend fun processSocketIoPacket(
         engineIoPacket: EngineIoPacket.TextMessage,
         connection: KognigyConnection,
     ): CognigyEvent.OutputEvent? {
@@ -205,8 +219,10 @@ class Kognigy(
                 logger.trace { "socket.io connect: ${packet.data}" }
                 connection.setupEndpointReadyTimeout()
             }
-            is SocketIoPacket.ConnectError -> logger.error {
-                "socket.io connectError: ${packet.data}"
+            is SocketIoPacket.ConnectError -> {
+                logger.error { "socket.io connectError: ${packet.data}" }
+                connection.close(CloseReason(CloseReason.Codes.PROTOCOL_ERROR, "Received connect error: ${packet.data}"))
+                return null
             }
             is SocketIoPacket.Disconnect -> logger.trace {
                 "socket.io disconnect"
@@ -228,9 +244,11 @@ class Kognigy(
             is SocketIoPacket.BinaryAcknowledge -> logger.trace {
                 "socket.io binary ack: id=${packet.acknowledgeId}, data=${packet.data?.toHexString()}"
             }
-            is SocketIoPacket.BrokenPacket -> logger.error(packet.t) {
-                "received broken socket.io packet: ${packet.reason}, ${packet.packet}"
-            }
+            is SocketIoPacket.BrokenPacket -> CognigyEvent.ProtocolError(
+                subject = SocketIo(packet),
+                message = "received broken socket.io packet: ${packet.reason}, ${packet.packet}",
+                t = packet.t,
+            )
         }
         return null
     }

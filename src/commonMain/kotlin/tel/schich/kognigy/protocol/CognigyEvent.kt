@@ -1,5 +1,6 @@
 package tel.schich.kognigy.protocol
 
+import io.ktor.websocket.Frame
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -7,6 +8,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
+import tel.schich.kognigy.protocol.CognigyEvent.ProtocolError.Subject.SocketIo
 import kotlin.jvm.JvmInline
 
 @Serializable
@@ -40,7 +42,8 @@ sealed interface CognigyEvent {
 
     val name: String
 
-    sealed interface InputEvent : CognigyEvent
+    sealed interface EncodableEvent : CognigyEvent
+    sealed interface InputEvent : CognigyEvent, EncodableEvent
     sealed interface OutputEvent : CognigyEvent
 
     @Serializable
@@ -85,7 +88,7 @@ sealed interface CognigyEvent {
     }
 
     @Serializable
-    sealed class Output : OutputEvent {
+    sealed class Output : OutputEvent, EncodableEvent {
         final override val name = NAME
 
         @Serializable
@@ -103,7 +106,7 @@ sealed interface CognigyEvent {
     @Serializable
     data class TypingStatus(
         val status: Status,
-    ) : OutputEvent {
+    ) : OutputEvent, EncodableEvent {
         override val name = NAME
 
         @Serializable
@@ -122,7 +125,7 @@ sealed interface CognigyEvent {
     @Serializable
     data class FinalPing(
         val type: Type,
-    ) : OutputEvent {
+    ) : OutputEvent, EncodableEvent {
         override val name = NAME
 
         @Serializable
@@ -145,7 +148,7 @@ sealed interface CognigyEvent {
         val id: String,
         val isDisableSensitiveLogging: Boolean,
         val result: Boolean? = null,
-    ) : OutputEvent {
+    ) : OutputEvent, EncodableEvent {
         override val name = NAME
 
         companion object {
@@ -154,7 +157,7 @@ sealed interface CognigyEvent {
     }
 
     @Serializable
-    data object EndpointReady : CognigyEvent {
+    data object EndpointReady : CognigyEvent, EncodableEvent {
         const val NAME = "endpoint-ready"
         override val name = NAME
     }
@@ -162,7 +165,7 @@ sealed interface CognigyEvent {
     @Serializable
     data class Exception(
         val error: JsonElement,
-    ) : OutputEvent {
+    ) : OutputEvent, EncodableEvent {
         override val name = NAME
 
         companion object {
@@ -170,22 +173,32 @@ sealed interface CognigyEvent {
         }
     }
 
-    data class BrokenEvent(
-        val data: SocketIoPacket.Event,
-        val reason: String,
+    data class ProtocolError(
+        val subject: Subject,
+        val message: String,
         val t: Throwable?,
     ) : OutputEvent {
-        override val name = "broken"
+        override val name = "protocol-error"
+
+        sealed interface Subject {
+            data class Websocket(val frame: Frame) : Subject
+            data class EngineIo(val packet: EngineIoPacket) : Subject
+            data class SocketIo(val packet: SocketIoPacket) : Subject
+        }
     }
 
     companion object {
         fun decode(json: Json, packet: SocketIoPacket.Event): CognigyEvent = when {
-            packet.arguments.isEmpty() -> {
-                BrokenEvent(packet, "no arguments given, exactly one needed", null)
-            }
-            packet.arguments.size > 1 -> {
-                BrokenEvent(packet, "${packet.arguments.size} arguments given, exactly one needed", null)
-            }
+            packet.arguments.isEmpty() -> ProtocolError(
+                subject = SocketIo(packet),
+                message = "no arguments given, exactly one needed",
+                t = null,
+            )
+            packet.arguments.size > 1 -> ProtocolError(
+                subject = SocketIo(packet),
+                message = "${packet.arguments.size} arguments given, exactly one needed",
+                t = null,
+            )
             else -> {
                 try {
                     when (val name = packet.name) {
@@ -196,10 +209,18 @@ sealed interface CognigyEvent {
                         TriggeredElement.NAME -> json.decodeFromJsonElement<TriggeredElement>(packet.arguments.first())
                         EndpointReady.NAME -> json.decodeFromJsonElement<EndpointReady>(packet.arguments.first())
                         Exception.NAME -> json.decodeFromJsonElement<Exception>(packet.arguments.first())
-                        else -> BrokenEvent(packet, "unknown event name: $name", null)
+                        else -> ProtocolError(
+                            subject = SocketIo(packet),
+                            message = "unknown event name: $name",
+                            t = null,
+                        )
                     }
                 } catch (e: SerializationException) {
-                    BrokenEvent(packet, "failed to decode argument", e)
+                    ProtocolError(
+                        subject = SocketIo(packet),
+                        message = "failed to decode argument",
+                        t = e,
+                    )
                 }
             }
         }
@@ -212,7 +233,7 @@ sealed interface CognigyEvent {
         private inline fun <reified T : Any> data(json: Json, name: String, event: T) =
             SocketIoPacket.Event(null, null, name, listOf(json.encodeToJsonElement(event)))
 
-        fun encode(json: Json, event: CognigyEvent): SocketIoPacket = when (event) {
+        fun encode(json: Json, event: EncodableEvent): SocketIoPacket = when (event) {
             is ProcessInput -> data(json, ProcessInput.NAME, event)
             is Output -> data(json, Output.NAME, event)
             is TypingStatus -> data(json, TypingStatus.NAME, event)
@@ -220,7 +241,6 @@ sealed interface CognigyEvent {
             is TriggeredElement -> data(json, TriggeredElement.NAME, event)
             is EndpointReady -> data(json, EndpointReady.NAME, event)
             is Exception -> data(json, Exception.NAME, event)
-            is BrokenEvent -> event.data
         }
     }
 }

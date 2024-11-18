@@ -1,0 +1,29 @@
+[versions]
+kotlin = "2.0.21"
+ktor = "3.0.0"
+dokka = "1.9.20"
+nexusPublish = "2.0.0"
+detekt = "1.23.7"
+kotlinxCoroutines = "1.9.0"
+kotlinxSerialization = "1.7.3"
+kotlinLogging = "7.0.0"
+logbackClassic = "1.5.10"
+
+[libraries]
+ktorBom = { module = "io.ktor:ktor-bom", version.ref="ktor" }
+kotlinxCoroutinesBom = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-bom", version.ref = "kotlinxCoroutines" }
+kotlinxSerializationBom = { module = "org.jetbrains.kotlinx:kotlinx-serialization-bom", version.ref = "kotlinxSerialization" }
+ktorClientCore = { module = "io.ktor:ktor-client-core" }
+ktorClientJava = { module = "io.ktor:ktor-client-java" }
+ktorClientWebsockets = { module = "io.ktor:ktor-client-websockets" }
+kotlinxCoroutinesCore = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core" }
+kotlinxSerializationJson = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json" }
+kotlinLogging = { module = "io.github.oshai:kotlin-logging", version.ref = "kotlinLogging" }
+logbackClassic = { module = "ch.qos.logback:logback-classic", version.ref = "logbackClassic" }
+
+[plugins]
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlinKotlinxSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+nexusPublish = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "nexusPublish" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }

@@ -4,20 +4,15 @@ plugins {
     signing
     java
     `maven-publish`
-    kotlin("multiplatform")
-    kotlin("plugin.serialization")
-    id("org.jetbrains.dokka")
-    id("io.github.gradle-nexus.publish-plugin")
-    id("io.gitlab.arturbosch.detekt")
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.kotlinKotlinxSerialization)
+    alias(libs.plugins.dokka)
+    alias(libs.plugins.nexusPublish)
+    alias(libs.plugins.detekt)
 }
 
 group = "tel.schich"
 version = "4.0.0-SNAPSHOT"
-
-val ktorVersion = "3.0.0"
-val coroutinesVersion = "1.9.0"
-val serializationVersion = "1.7.3"
-
 
 tasks.withType<Test> {
     useJUnitPlatform()
@@ -66,16 +61,20 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                api("io.ktor:ktor-client-core:$ktorVersion")
-                implementation("io.ktor:ktor-client-websockets:$ktorVersion")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
-                api("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
-                implementation("io.github.oshai:kotlin-logging:7.0.0")
+                implementation(project.dependencies.platform(libs.ktorBom))
+                implementation(project.dependencies.platform(libs.kotlinxCoroutinesBom))
+                implementation(project.dependencies.platform(libs.kotlinxSerializationBom))
+                api(libs.ktorClientCore)
+                api(libs.ktorClientWebsockets)
+                api(libs.kotlinxCoroutinesCore)
+                api(libs.kotlinxSerializationJson)
+                implementation(libs.kotlinLogging)
             }
         }
 
         val commonTest by getting {
             dependencies {
+                implementation(kotlin("test"))
                 implementation(kotlin("test-common"))
                 implementation(kotlin("test-annotations-common"))
             }
@@ -83,12 +82,8 @@ kotlin {
 
         getByName("jvmTest") {
             dependencies {
-                val junitVersion = "5.11.2"
-                implementation("io.ktor:ktor-client-java:$ktorVersion")
-                implementation(kotlin("test"))
-                implementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
-                implementation("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
-                implementation("ch.qos.logback:logback-classic:1.5.10")
+                implementation(libs.ktorClientJava)
+                implementation(libs.logbackClassic)
             }
         }
     }

@@ -25,6 +25,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import tel.schich.kognigy.protocol.CognigyEvent
 import tel.schich.kognigy.protocol.CognigyEvent.ProtocolError.Subject.EngineIo
 import tel.schich.kognigy.protocol.CognigyEvent.ProtocolError.Subject.SocketIo
@@ -53,6 +54,7 @@ class Kognigy(
      * * `n < 0`: never assume ready
      */
     private val endpointReadyTimeoutMillis: Long = -1,
+    private val sendAcknowledgements: Boolean = true,
 ) {
     private val json = Json {
         encodeDefaults = true
@@ -98,6 +100,7 @@ class Kognigy(
                 parameters.append("sessionId", session.id.value)
                 parameters.append("userId", session.userId.value)
                 parameters.append("testMode", session.testMode.toString())
+                parameters.append("emitWithAck", sendAcknowledgements.toString())
             }
         }
 
@@ -227,12 +230,24 @@ class Kognigy(
             is SocketIoPacket.Disconnect -> logger.trace {
                 "socket.io disconnect"
             }
-            is SocketIoPacket.Event -> when (val event = CognigyEvent.decode(json, packet)) {
-                is CognigyEvent.OutputEvent -> return event
-                is CognigyEvent.EndpointReady -> {
-                    connection.onEndpointReady()
+            is SocketIoPacket.Event -> {
+                if (sendAcknowledgements && packet.acknowledgeId != null) {
+                    connection.send(
+                        SocketIoPacket.Acknowledge(
+                            packet.namespace,
+                            packet.acknowledgeId,
+                            data = JsonArray(emptyList()),
+                        ),
+                        flush = true,
+                    )
                 }
-                is CognigyEvent.ProcessInput -> {}
+                when (val event = CognigyEvent.decode(json, packet)) {
+                    is CognigyEvent.OutputEvent -> return event
+                    is CognigyEvent.EndpointReady -> {
+                        connection.onEndpointReady()
+                    }
+                    is CognigyEvent.ProcessInput -> {}
+                }
             }
             is SocketIoPacket.Acknowledge -> logger.trace {
                 "socket.io ack: id=${packet.acknowledgeId}, data=${packet.data}"

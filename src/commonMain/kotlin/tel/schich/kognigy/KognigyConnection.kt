@@ -119,6 +119,10 @@ class KognigyConnection(
         }
     }
 
+    internal suspend fun send(packet: SocketIoPacket, flush: Boolean) {
+        send(SocketIoPacket.encode(json, packet), flush)
+    }
+
     @Suppress("LongParameterList")
     suspend fun sendInput(
         text: String,

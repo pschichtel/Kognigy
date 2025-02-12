@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+import pl.allegro.tech.build.axion.release.domain.PredefinedVersionCreator
 
 plugins {
     signing
@@ -8,10 +9,22 @@ plugins {
     alias(libs.plugins.dokka)
     alias(libs.plugins.nexusPublish)
     alias(libs.plugins.detekt)
+    alias(libs.plugins.axionRelease)
+}
+
+scmVersion {
+    tag {
+        prefix = "v"
+    }
+    nextVersion {
+        suffix = "SNAPSHOT"
+        separator = "-"
+    }
+    versionCreator = PredefinedVersionCreator.SIMPLE.versionCreator
 }
 
 group = "tel.schich"
-version = "4.0.2-SNAPSHOT"
+version = scmVersion.version
 
 tasks.withType<Test> {
     useJUnitPlatform()

@@ -1,13 +1,13 @@
 [versions]
-kotlin = "2.1.0"
-ktor = "3.0.2"
-dokka = "1.9.20"
+kotlin = "2.1.10"
+ktor = "3.1.0"
+dokka = "2.0.0"
 nexusPublish = "2.0.0"
 detekt = "1.23.7"
-kotlinxCoroutines = "1.9.0"
-kotlinxSerialization = "1.7.3"
-kotlinLogging = "7.0.3"
-logbackClassic = "1.5.12"
+kotlinxCoroutines = "1.10.1"
+kotlinxSerialization = "1.8.0"
+kotlinLogging = "7.0.4"
+logbackClassic = "1.5.16"
 parserKombinator = "0.3.1"
 
 [libraries]

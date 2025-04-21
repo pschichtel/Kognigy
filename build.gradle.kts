@@ -45,7 +45,6 @@ repositories {
 kotlin {
     jvmToolchain(11)
     jvm {
-        withJava()
         compilations.all {
             compileTaskProvider.configure {
                 compilerOptions {

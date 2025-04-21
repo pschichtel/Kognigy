@@ -1,15 +1,15 @@
 [versions]
-kotlin = "2.1.10"
-ktor = "3.1.0"
+kotlin = "2.1.20"
+ktor = "3.1.2"
 dokka = "2.0.0"
 nexusPublish = "2.0.0"
-detekt = "1.23.7"
-kotlinxCoroutines = "1.10.1"
-kotlinxSerialization = "1.8.0"
-kotlinLogging = "7.0.4"
-logbackClassic = "1.5.16"
+detekt = "1.23.8"
+kotlinxCoroutines = "1.10.2"
+kotlinxSerialization = "1.8.1"
+kotlinLogging = "7.0.7"
+logbackClassic = "1.5.18"
 parserKombinator = "0.3.1"
-axionRelease = "1.18.16"
+axionRelease = "1.18.18"
 
 [libraries]
 ktorBom = { module = "io.ktor:ktor-bom", version.ref="ktor" }

@@ -12,14 +12,11 @@ parserKombinator = "0.3.1"
 axionRelease = "1.18.18"
 
 [libraries]
-ktorBom = { module = "io.ktor:ktor-bom", version.ref="ktor" }
-kotlinxCoroutinesBom = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-bom", version.ref = "kotlinxCoroutines" }
-kotlinxSerializationBom = { module = "org.jetbrains.kotlinx:kotlinx-serialization-bom", version.ref = "kotlinxSerialization" }
-ktorClientCore = { module = "io.ktor:ktor-client-core" }
-ktorClientJava = { module = "io.ktor:ktor-client-java" }
-ktorClientWebsockets = { module = "io.ktor:ktor-client-websockets" }
-kotlinxCoroutinesCore = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core" }
-kotlinxSerializationJson = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json" }
+ktorClientCore = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktorClientJava = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }
+ktorClientWebsockets = { module = "io.ktor:ktor-client-websockets", version.ref = "ktor" }
+kotlinxCoroutinesCore = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+kotlinxSerializationJson = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinLogging = { module = "io.github.oshai:kotlin-logging", version.ref = "kotlinLogging" }
 logbackClassic = { module = "ch.qos.logback:logback-classic", version.ref = "logbackClassic" }
 parserKombinator = { module = "tel.schich:parser-kombinator", version.ref = "parserKombinator" }

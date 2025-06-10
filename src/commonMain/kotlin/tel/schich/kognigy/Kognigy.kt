@@ -19,11 +19,10 @@ import io.ktor.websocket.WebSocketSession
 import io.ktor.websocket.close
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import tel.schich.kognigy.protocol.CognigyEvent
@@ -32,18 +31,20 @@ import tel.schich.kognigy.protocol.CognigyEvent.ProtocolError.Subject.SocketIo
 import tel.schich.kognigy.protocol.CognigyEvent.ProtocolError.Subject.Websocket
 import tel.schich.kognigy.protocol.EngineIoPacket
 import tel.schich.kognigy.protocol.SocketIoPacket
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 class EarlyDisconnectException :
     Exception("The session got disconnected before receiving anything! Check your configuration!")
 
-class UnableToConnectException(cause: TimeoutCancellationException) :
-    Exception("The connection could not be established with the configured connect timeout!", cause)
+class UnableToConnectException() :
+    Exception("The connection could not be established with the configured connect timeout!")
 
 private val receiveJobName = CoroutineName("kognigy-receive-job")
 
 class Kognigy(
     engineFactory: HttpClientEngineFactory<*>,
-    private val connectTimeoutMillis: Long = 2000,
+    private val connectTimeout: Duration = 2.seconds,
     private val userAgent: String = "Kognigy",
     @Deprecated(message = "This is ignored, configure it in the engine directly", level = DeprecationLevel.WARNING)
     private val proxyConfig: ProxyConfig? = null,
@@ -132,16 +133,16 @@ class Kognigy(
         return connection
     }
 
-    private suspend fun awaitConnected(wsSession: WebSocketSession, onSocketIoConnected: Deferred<*>) {
+    private suspend fun <T : Any> awaitConnected(wsSession: WebSocketSession, onSocketIoConnected: Deferred<T>) {
         if (!wsSession.isActive) {
             throw EarlyDisconnectException()
         }
-        try {
-            withTimeout(connectTimeoutMillis) {
-                onSocketIoConnected.await()
-            }
-        } catch (e: TimeoutCancellationException) {
-            throw UnableToConnectException(e)
+
+        val result = withTimeoutOrNull(connectTimeout) {
+            onSocketIoConnected.await()
+        }
+        if (result == null) {
+            throw UnableToConnectException()
         }
     }
 

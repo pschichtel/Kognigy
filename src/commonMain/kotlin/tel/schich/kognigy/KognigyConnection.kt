@@ -8,12 +8,11 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import tel.schich.kognigy.protocol.CognigyEvent
@@ -60,19 +59,18 @@ class KognigyConnection(
         pingTimer = wsSession.launch(pingJobName) {
             while (true) {
                 delay(intervalMillis)
-                try {
-                    withTimeout(timeoutMillis) {
-                        send(EngineIoPacket.Ping, flush = true)
-                    }
-                    if (pongTimeout == null) {
-                        pongTimeout = wsSession.launch(pongTimeoutJobName) {
-                            delay(timeoutMillis)
-                            fail(PongTimeoutException(timeoutMessage))
-                        }
-                    }
-                } catch (e: TimeoutCancellationException) {
+                val result = withTimeoutOrNull(timeoutMillis) {
+                    send(EngineIoPacket.Ping, flush = true)
+                }
+                if (result == null) {
                     fail(PingTimeoutException(timeoutMessage))
                     break
+                }
+                if (pongTimeout == null) {
+                    pongTimeout = wsSession.launch(pongTimeoutJobName) {
+                        delay(timeoutMillis)
+                        fail(PongTimeoutException(timeoutMessage))
+                    }
                 }
             }
         }

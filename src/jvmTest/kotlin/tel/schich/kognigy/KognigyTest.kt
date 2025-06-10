@@ -11,16 +11,15 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonElement
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariables
@@ -43,6 +42,7 @@ import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.fail
+import kotlin.time.Duration.Companion.seconds
 
 private val logger = KotlinLogging.logger {}
 
@@ -119,21 +119,20 @@ class KognigyTest {
             sendInput(input)
             val start = Instant.now()
             while (true) {
-                val event = try {
-                    withTimeout(20000) {
-                        connection.output.receive().also {
-                            val duration = Duration.between(start, Instant.now()).toMillis()
-                            totalMillis += duration
-                            if (duration > maxMillis) {
-                                maxMillis = duration
-                            }
-                            if (duration < minMillis) {
-                                minMillis = duration
-                            }
+                val event = withTimeoutOrNull(20.seconds) {
+                    connection.output.receive().also {
+                        val duration = Duration.between(start, Instant.now()).toMillis()
+                        totalMillis += duration
+                        if (duration > maxMillis) {
+                            maxMillis = duration
+                        }
+                        if (duration < minMillis) {
+                            minMillis = duration
                         }
                     }
-                } catch (e: TimeoutCancellationException) {
-                    fail("Receive timed out!", e)
+                }
+                if (event == null) {
+                    fail("Receive timed out!", cause = null)
                 }
                 logger.info { "Received Event: $event" }
                 if (event is CognigyEvent.ProtocolError) {

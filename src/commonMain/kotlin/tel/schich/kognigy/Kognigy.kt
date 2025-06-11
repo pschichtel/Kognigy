@@ -4,6 +4,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.engine.ProxyConfig
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.UserAgent
 import io.ktor.client.plugins.websocket.WebSockets
@@ -37,8 +38,7 @@ import kotlin.time.Duration.Companion.seconds
 class EarlyDisconnectException :
     Exception("The session got disconnected before receiving anything! Check your configuration!")
 
-class UnableToConnectException() :
-    Exception("The connection could not be established with the configured connect timeout!")
+class UnableToConnectException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 private val receiveJobName = CoroutineName("kognigy-receive-job")
 
@@ -87,28 +87,32 @@ class Kognigy(
             "Protocol must be http or https"
         }
 
-        val wsSession = withTimeoutOrNull(connectTimeout) {
-            client.webSocketSession {
-                method = HttpMethod.Get
-                url {
-                    takeFrom(url)
-                    protocol =
-                        if (url.protocol.isSecure()) URLProtocol.WSS
-                        else URLProtocol.WS
-                    encodedPath = "/socket.io/"
-                    parameters.append("EIO", "3")
-                    parameters.append("transport", "websocket")
-                    parameters.append("urlToken", session.endpointToken.value)
-                    parameters.append("sessionId", session.id.value)
-                    parameters.append("userId", session.userId.value)
-                    parameters.append("testMode", session.testMode.toString())
-                    parameters.append("emitWithAck", sendAcknowledgements.toString())
+        val wsSession = try {
+            withTimeoutOrNull(connectTimeout) {
+                client.webSocketSession {
+                    method = HttpMethod.Get
+                    url {
+                        takeFrom(url)
+                        protocol =
+                            if (url.protocol.isSecure()) URLProtocol.WSS
+                            else URLProtocol.WS
+                        encodedPath = "/socket.io/"
+                        parameters.append("EIO", "3")
+                        parameters.append("transport", "websocket")
+                        parameters.append("urlToken", session.endpointToken.value)
+                        parameters.append("sessionId", session.id.value)
+                        parameters.append("userId", session.userId.value)
+                        parameters.append("testMode", session.testMode.toString())
+                        parameters.append("emitWithAck", sendAcknowledgements.toString())
+                    }
                 }
             }
+        } catch (e: HttpRequestTimeoutException) {
+            throw UnableToConnectException(message = "The TCP connection timed out!", cause = e)
         }
 
         if (wsSession == null) {
-            throw UnableToConnectException()
+            throw UnableToConnectException(message = "The HTTP request timed out!")
         }
 
         val outputs = Channel<CognigyEvent.OutputEvent>(Channel.UNLIMITED)
@@ -148,7 +152,7 @@ class Kognigy(
             onSocketIoConnected.await()
         }
         if (result == null) {
-            throw UnableToConnectException()
+            throw UnableToConnectException(message = "The endpoint did not become ready in time!")
         }
     }
 

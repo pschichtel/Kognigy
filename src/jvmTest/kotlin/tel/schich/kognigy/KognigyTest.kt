@@ -31,8 +31,6 @@ import tel.schich.kognigy.protocol.CognigyEvent
 import tel.schich.kognigy.protocol.EndpointToken
 import tel.schich.kognigy.protocol.SessionId
 import tel.schich.kognigy.protocol.UserId
-import java.time.Duration
-import java.time.Instant
 import java.util.UUID.randomUUID
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -42,7 +40,11 @@ import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.fail
+import kotlin.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.ExperimentalTime
 
 private val logger = KotlinLogging.logger {}
 
@@ -54,14 +56,14 @@ class KognigyTest {
 
     private fun defaultKognigy(
         engine: HttpClientEngineFactory<*> = Java,
-        endpointReadyTimeoutOfShame: Long = -1,
+        endpointReadyTimeout: Duration = Duration.INFINITE,
     ): Kognigy {
         val proxy = System.getenv("COGNIGY_HTTP_PROXY")?.ifBlank { null }?.let { ProxyBuilder.http(it) }
 
         val configuredEngine = engine.config {
             this.proxy = proxy
         }
-        return Kognigy(configuredEngine, endpointReadyTimeoutMillis = endpointReadyTimeoutOfShame)
+        return Kognigy(configuredEngine, endpointReadyTimeout = endpointReadyTimeout)
     }
 
     private inline fun withKognigy(
@@ -88,6 +90,7 @@ class KognigyTest {
         block(kognigy, session)
     }
 
+    @OptIn(ExperimentalTime::class)
     private suspend fun runTest(
         kognigy: Kognigy = defaultKognigy(),
         sessionId: SessionId? = null,
@@ -110,24 +113,24 @@ class KognigyTest {
             connection.sendInput(input.first, input.second)
         }
 
-        var totalMillis = 0L
-        var maxMillis = Long.MIN_VALUE
-        var minMillis = Long.MAX_VALUE
+        var totalDuration = Duration.ZERO
+        var maxDuration = Duration.ZERO
+        var minDuration = Duration.INFINITE
 
         repeat(iterations) {
             val input = newPayload()
             sendInput(input)
-            val start = Instant.now()
+            val start = Clock.System.now()
             while (true) {
                 val event = withTimeoutOrNull(20.seconds) {
                     connection.output.receive().also {
-                        val duration = Duration.between(start, Instant.now()).toMillis()
-                        totalMillis += duration
-                        if (duration > maxMillis) {
-                            maxMillis = duration
+                        val duration = (Clock.System.now() - start)
+                        totalDuration += duration
+                        if (duration > maxDuration) {
+                            maxDuration = duration
                         }
-                        if (duration < minMillis) {
-                            minMillis = duration
+                        if (duration < minDuration) {
+                            minDuration = duration
                         }
                     }
                 }
@@ -152,8 +155,8 @@ class KognigyTest {
 
         connection.close()
 
-        val avg = totalMillis / iterations
-        logger.info { "run complete - min=$minMillis max=$maxMillis avg=$avg" }
+        val avg = totalDuration / iterations
+        logger.info { "run complete - min=$minDuration max=$maxDuration avg=$avg" }
     }
 
     /**
@@ -216,7 +219,7 @@ class KognigyTest {
                     if (iteration % 10 == 0) {
                         logger.info { "######## $iteration. iteration, $activeRuns active runs" }
                     }
-                    delay(timeMillis = 50)
+                    delay(50.milliseconds)
                 }
             }
         }
@@ -280,7 +283,7 @@ class KognigyTest {
                 }
 
                 connection.sendInput(text = "test")
-                delay(timeMillis = 1000)
+                delay(1.seconds)
                 connection.close()
                 logger.info { "Closed!" }
 

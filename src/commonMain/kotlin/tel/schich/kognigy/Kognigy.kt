@@ -52,9 +52,9 @@ class Kognigy(
      * Domain:
      * * `n > 0`: wait n millis for the endpoint-ready event, afterward assume ready
      * * `n = 0`: immediately assume ready
-     * * `n < 0`: never assume ready
+     * * `n = infinite`: never assume ready
      */
-    private val endpointReadyTimeoutMillis: Long = -1,
+    private val endpointReadyTimeout: Duration,
     private val sendAcknowledgements: Boolean = true,
 ) {
     private val json = Json {
@@ -70,7 +70,7 @@ class Kognigy(
         }
         install(WebSockets)
         install(HttpTimeout) {
-            this.connectTimeoutMillis = connectTimeoutMillis
+            connectTimeoutMillis = connectTimeout.inWholeMilliseconds
         }
         install(UserAgent) {
             agent = userAgent
@@ -79,7 +79,7 @@ class Kognigy(
 
     suspend fun connect(
         session: KognigySession,
-        endpointReadyTimeoutMillis: Long = this.endpointReadyTimeoutMillis,
+        endpointReadyTimeout: Duration = this.endpointReadyTimeout,
     ): KognigyConnection {
         val url = session.endpoint
 
@@ -106,7 +106,7 @@ class Kognigy(
         }
 
         val outputs = Channel<CognigyEvent.OutputEvent>(Channel.UNLIMITED)
-        val connection = KognigyConnection(session, outputs, wsSession, json, endpointReadyTimeoutMillis)
+        val connection = KognigyConnection(session, outputs, wsSession, json, endpointReadyTimeout)
 
         wsSession.launch(receiveJobName) {
             while (true) {
@@ -179,7 +179,7 @@ class Kognigy(
         when (packet) {
             is EngineIoPacket.Open -> {
                 logger.trace { "engine.io open: $packet" }
-                connection.setupPingTimer(packet.pingIntervalMillis, packet.pingTimeoutMillis)
+                connection.setupPingTimer(packet.pingInterval, packet.pingTimeout)
             }
             is EngineIoPacket.Close -> logger.trace {
                 "engine.io close"

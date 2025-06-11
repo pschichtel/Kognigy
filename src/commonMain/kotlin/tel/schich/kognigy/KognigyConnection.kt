@@ -20,6 +20,7 @@ import tel.schich.kognigy.protocol.EngineIoPacket
 import tel.schich.kognigy.protocol.PingTimeoutException
 import tel.schich.kognigy.protocol.PongTimeoutException
 import tel.schich.kognigy.protocol.SocketIoPacket
+import kotlin.time.Duration
 
 private val pingJobName = CoroutineName("kognigy-ping-job")
 private val pongTimeoutJobName = CoroutineName("kognigy-pong-timeout-job")
@@ -36,20 +37,20 @@ class KognigyConnection(
     val output: ReceiveChannel<CognigyEvent.OutputEvent>,
     private val wsSession: WebSocketSession,
     private val json: Json,
-    val endpointReadyTimeoutMillis: Long,
+    val endpointReadyTimeout: Duration,
 ) {
     private val connectionSuccessReasonPromise = CompletableDeferred<ConnectionSuccessReason>()
     private var pingTimer: Job? = null
     private var pongTimeout: Job? = null
-    private var endpointReadyTimeout: Job? = null
+    private var endpointReadyTimeoutJob: Job? = null
 
     val connectionSuccessReason: Deferred<ConnectionSuccessReason>
         get() = connectionSuccessReasonPromise
 
-    internal suspend fun setupPingTimer(intervalMillis: Long, timeoutMillis: Long) {
+    internal fun setupPingTimer(interval: Duration, timeout: Duration) {
         // repeated open-events will just reset the timer
         pingTimer?.cancel()
-        val timeoutMessage = "engine.io pong didn't arrive for $timeoutMillis ms!"
+        val timeoutMessage = "engine.io pong didn't arrive for $timeout ms!"
 
         suspend fun fail(reason: CancellationException) {
             connectionSuccessReasonPromise.completeExceptionally(reason)
@@ -58,8 +59,8 @@ class KognigyConnection(
 
         pingTimer = wsSession.launch(pingJobName) {
             while (true) {
-                delay(intervalMillis)
-                val result = withTimeoutOrNull(timeoutMillis) {
+                delay(interval)
+                val result = withTimeoutOrNull(timeout) {
                     send(EngineIoPacket.Ping, flush = true)
                 }
                 if (result == null) {
@@ -68,7 +69,7 @@ class KognigyConnection(
                 }
                 if (pongTimeout == null) {
                     pongTimeout = wsSession.launch(pongTimeoutJobName) {
-                        delay(timeoutMillis)
+                        delay(timeout)
                         fail(PongTimeoutException(timeoutMessage))
                     }
                 }
@@ -81,15 +82,15 @@ class KognigyConnection(
     }
 
     internal fun setupEndpointReadyTimeout() {
-        endpointReadyTimeout?.cancel()
+        endpointReadyTimeoutJob?.cancel()
         when {
-            endpointReadyTimeoutMillis < 0 -> {}
-            endpointReadyTimeoutMillis == 0L -> {
+            endpointReadyTimeout.isInfinite() -> {}
+            endpointReadyTimeout == Duration.ZERO -> {
                 completeConnection(ConnectionSuccessReason.ASSUMED_READY_WITHOUT_TIMEOUT)
             }
             else -> {
-                endpointReadyTimeout = wsSession.launch(endpointReadyTimeoutJobName) {
-                    delay(endpointReadyTimeoutMillis)
+                endpointReadyTimeoutJob = wsSession.launch(endpointReadyTimeoutJobName) {
+                    delay(endpointReadyTimeout)
                     completeConnection(ConnectionSuccessReason.ASSUMED_READY_WITH_TIMEOUT)
                 }
             }
@@ -97,7 +98,7 @@ class KognigyConnection(
     }
 
     internal fun onEndpointReady() {
-        endpointReadyTimeout?.cancel()
+        endpointReadyTimeoutJob?.cancel()
         completeConnection(ConnectionSuccessReason.ENDPOINT_READY_SIGNAL)
     }
 

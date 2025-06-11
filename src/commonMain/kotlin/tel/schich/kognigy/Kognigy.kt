@@ -87,22 +87,28 @@ class Kognigy(
             "Protocol must be http or https"
         }
 
-        val wsSession = client.webSocketSession {
-            method = HttpMethod.Get
-            url {
-                takeFrom(url)
-                protocol =
-                    if (url.protocol.isSecure()) URLProtocol.WSS
-                    else URLProtocol.WS
-                encodedPath = "/socket.io/"
-                parameters.append("EIO", "3")
-                parameters.append("transport", "websocket")
-                parameters.append("urlToken", session.endpointToken.value)
-                parameters.append("sessionId", session.id.value)
-                parameters.append("userId", session.userId.value)
-                parameters.append("testMode", session.testMode.toString())
-                parameters.append("emitWithAck", sendAcknowledgements.toString())
+        val wsSession = withTimeoutOrNull(connectTimeout) {
+            client.webSocketSession {
+                method = HttpMethod.Get
+                url {
+                    takeFrom(url)
+                    protocol =
+                        if (url.protocol.isSecure()) URLProtocol.WSS
+                        else URLProtocol.WS
+                    encodedPath = "/socket.io/"
+                    parameters.append("EIO", "3")
+                    parameters.append("transport", "websocket")
+                    parameters.append("urlToken", session.endpointToken.value)
+                    parameters.append("sessionId", session.id.value)
+                    parameters.append("userId", session.userId.value)
+                    parameters.append("testMode", session.testMode.toString())
+                    parameters.append("emitWithAck", sendAcknowledgements.toString())
+                }
             }
+        }
+
+        if (wsSession == null) {
+            throw UnableToConnectException()
         }
 
         val outputs = Channel<CognigyEvent.OutputEvent>(Channel.UNLIMITED)

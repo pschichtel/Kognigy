@@ -1,3 +1,4 @@
+import io.github.zenhelix.gradle.plugin.extension.PublishingType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
 import pl.allegro.tech.build.axion.release.domain.PredefinedVersionCreator
 
@@ -7,9 +8,9 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.kotlinKotlinxSerialization)
     alias(libs.plugins.dokka)
-    alias(libs.plugins.nexusPublish)
     alias(libs.plugins.detekt)
     alias(libs.plugins.axionRelease)
+    alias(libs.plugins.mavenCentralPublish)
 }
 
 scmVersion {
@@ -99,6 +100,13 @@ val javadocJar by tasks.registering(Jar::class) {
 }
 
 publishing {
+    repositories {
+        maven {
+            name = "mavenCentralSnapshots"
+            url = uri("https://central.sonatype.com/repository/maven-snapshots/")
+            credentials(PasswordCredentials::class)
+        }
+    }
     publications {
         publications.withType<MavenPublication> {
             pom {
@@ -136,8 +144,10 @@ signing {
     sign(publishing.publications)
 }
 
-nexusPublishing {
-    this.repositories {
-        sonatype()
+mavenCentralPortal {
+    credentials {
+        username = project.provider { project.property("mavenCentralPortalUsername") as String }
+        password = project.provider { project.property("mavenCentralPortalPassword") as String }
     }
+    publishingType = PublishingType.AUTOMATIC
 }

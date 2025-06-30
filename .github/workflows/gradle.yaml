@@ -1,0 +1,36 @@
+name: Build
+
+on:
+  push:
+    branches: [ '*' ]
+    tags: [ '*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          cache: gradle
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Build
+        run: |
+          task=(assemble)
+          if [ "$GITHUB_REF" = 'refs/heads/main' ]
+          then
+            task=(publishAllPublicationsToMavenCentralSnapshotsRepository)
+          fi
+          ./gradlew --no-configuration-cache "${task[@]}"
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralSnapshotsUsername: ${{ secrets.SONATYPE_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralSnapshotsPassword: ${{ secrets.SONATYPE_PASSWORD }}

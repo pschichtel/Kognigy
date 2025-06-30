@@ -139,9 +139,13 @@ publishing {
     }
 }
 
-signing {
-    useGpgCmd()
-    sign(publishing.publications)
+
+val ci = System.getenv("CI") != null
+if (!ci) {
+    signing {
+        useGpgCmd()
+        sign(publishing.publications)
+    }
 }
 
 mavenCentralPortal {

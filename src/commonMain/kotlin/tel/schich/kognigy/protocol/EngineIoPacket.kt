@@ -66,11 +66,11 @@ sealed interface EngineIoPacket {
         val maxPayloadBytes: Long,
     ) : EngineIoPacket
 
-    object Close : EngineIoPacket
+    data object Close : EngineIoPacket
 
-    object Ping : EngineIoPacket
+    data object Ping : EngineIoPacket
 
-    object Pong : EngineIoPacket
+    data object Pong : EngineIoPacket
 
     data class TextMessage(
         val message: String,
@@ -80,9 +80,9 @@ sealed interface EngineIoPacket {
         val data: Data,
     ) : EngineIoPacket
 
-    object Upgrade : EngineIoPacket
+    data object Upgrade : EngineIoPacket
 
-    object Noop : EngineIoPacket
+    data object Noop : EngineIoPacket
 
     data class Error(
         val data: String,

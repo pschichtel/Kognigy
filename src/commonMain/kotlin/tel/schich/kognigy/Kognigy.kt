@@ -3,7 +3,6 @@ package tel.schich.kognigy
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngineFactory
-import io.ktor.client.engine.ProxyConfig
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.UserAgent
@@ -46,11 +45,9 @@ class Kognigy(
     engineFactory: HttpClientEngineFactory<*>,
     private val connectTimeout: Duration = 2.seconds,
     private val userAgent: String = "Kognigy",
-    @Deprecated(message = "This is ignored, configure it in the engine directly", level = DeprecationLevel.WARNING)
-    private val proxyConfig: ProxyConfig? = null,
     /**
      * Domain:
-     * * `n > 0`: wait n millis for the endpoint-ready event, afterward assume ready
+     * * `n > 0`: wait the duration for the endpoint-ready event, afterward assume ready
      * * `n = 0`: immediately assume ready
      * * `n = infinite`: never assume ready
      */

@@ -41,6 +41,12 @@ class UnableToConnectException(message: String, cause: Throwable? = null) : Exce
 
 private val receiveJobName = CoroutineName("kognigy-receive-job")
 
+internal val json = Json {
+    encodeDefaults = true
+    explicitNulls = false
+    ignoreUnknownKeys = true
+}
+
 class Kognigy(
     engineFactory: HttpClientEngineFactory<*>,
     private val connectTimeout: Duration = 2.seconds,
@@ -54,11 +60,6 @@ class Kognigy(
     private val endpointReadyTimeout: Duration,
     private val sendAcknowledgements: Boolean = true,
 ) {
-    private val json = Json {
-        encodeDefaults = true
-        explicitNulls = false
-        ignoreUnknownKeys = true
-    }
 
     private val client = HttpClient(engineFactory) {
         install(WebSockets)
@@ -109,7 +110,7 @@ class Kognigy(
         }
 
         val outputs = Channel<CognigyEvent.OutputEvent>(Channel.UNLIMITED)
-        val connection = KognigyConnection(session, outputs, wsSession, json, endpointReadyTimeout)
+        val connection = KognigyConnection(session, outputs, wsSession, endpointReadyTimeout)
 
         wsSession.launch(receiveJobName) {
             while (true) {
@@ -177,7 +178,7 @@ class Kognigy(
         frame: Frame.Text,
         connection: KognigyConnection,
     ): CognigyEvent.OutputEvent? {
-        val packet = EngineIoPacket.decode(json, frame)
+        val packet = EngineIoPacket.decode(frame)
         logger.trace { "EngineIO packet: $packet" }
         when (packet) {
             is EngineIoPacket.Open -> {
@@ -219,7 +220,7 @@ class Kognigy(
         engineIoPacket: EngineIoPacket.TextMessage,
         connection: KognigyConnection,
     ): CognigyEvent.OutputEvent? {
-        val packet = SocketIoPacket.decode(json, engineIoPacket)
+        val packet = SocketIoPacket.decode(engineIoPacket)
         logger.trace { "SocketIO packet: $packet" }
         when (packet) {
             is SocketIoPacket.Connect -> {
@@ -245,7 +246,7 @@ class Kognigy(
                         flush = true,
                     )
                 }
-                when (val event = CognigyEvent.decode(json, packet)) {
+                when (val event = CognigyEvent.decode(packet)) {
                     is CognigyEvent.OutputEvent -> return event
                     is CognigyEvent.EndpointReady -> {
                         connection.onEndpointReady()

@@ -1,6 +1,5 @@
 package tel.schich.kognigy.protocol
 
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -9,6 +8,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
+import tel.schich.kognigy.json
 import tel.schich.parserkombinator.ParserResult.Error
 import tel.schich.parserkombinator.ParserResult.Ok
 import tel.schich.parserkombinator.StringSlice
@@ -79,7 +79,7 @@ sealed interface SocketIoPacket {
     ) : SocketIoPacket
 
     companion object {
-        fun decode(json: Json, packet: EngineIoPacket.TextMessage): SocketIoPacket {
+        fun decode(packet: EngineIoPacket.TextMessage): SocketIoPacket {
             val message = packet.message
             if (message.isEmpty()) {
                 return BrokenPacket(message, "empty message", null)
@@ -111,39 +111,33 @@ sealed interface SocketIoPacket {
             }
         }
 
-        fun encode(json: Json, packet: SocketIoPacket): EngineIoPacket.TextMessage {
-
+        fun encode(packet: SocketIoPacket): EngineIoPacket.TextMessage {
             return when (packet) {
                 is Connect -> encodePacket(
-                    json,
                     type = 0,
                     namespace = packet.namespace,
                     acknowledgeId = null,
                     data = null,
                 )
                 is Disconnect -> encodePacket(
-                    json,
                     type = 1,
                     namespace = packet.namespace,
                     acknowledgeId = null,
                     data = null,
                 )
                 is Event -> encodePacket(
-                    json,
                     type = 2,
                     namespace = packet.namespace,
                     acknowledgeId = packet.acknowledgeId,
                     data = JsonArray(listOf(JsonPrimitive(packet.name)) + packet.arguments),
                 )
                 is Acknowledge -> encodePacket(
-                    json,
                     type = 3,
                     namespace = packet.namespace,
                     acknowledgeId = packet.acknowledgeId,
                     data = packet.data,
                 )
                 is ConnectError -> encodePacket(
-                    json,
                     type = 4,
                     namespace = packet.namespace,
                     acknowledgeId = null,
@@ -158,7 +152,6 @@ sealed interface SocketIoPacket {
 }
 
 private fun encodePacket(
-    json: Json,
     type: Int,
     namespace: String?,
     acknowledgeId: Int?,

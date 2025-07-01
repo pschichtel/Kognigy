@@ -36,7 +36,6 @@ class KognigyConnection(
     val session: KognigySession,
     val output: ReceiveChannel<CognigyEvent.OutputEvent>,
     private val wsSession: WebSocketSession,
-    private val json: Json,
     val endpointReadyTimeout: Duration,
 ) {
     private val connectionSuccessReasonPromise = CompletableDeferred<ConnectionSuccessReason>()
@@ -112,14 +111,14 @@ class KognigyConnection(
     }
 
     internal suspend fun send(packet: EngineIoPacket, flush: Boolean) {
-        wsSession.send(EngineIoPacket.encode(json, packet))
+        wsSession.send(EngineIoPacket.encode(packet))
         if (flush) {
             wsSession.flush()
         }
     }
 
     internal suspend fun send(packet: SocketIoPacket, flush: Boolean) {
-        send(SocketIoPacket.encode(json, packet), flush)
+        send(SocketIoPacket.encode(packet), flush)
     }
 
     @Suppress("LongParameterList")
@@ -150,7 +149,7 @@ class KognigyConnection(
     }
 
     suspend fun send(event: CognigyEvent.EncodableEvent, flush: Boolean = false) {
-        send(SocketIoPacket.encode(json, CognigyEvent.encode(json, event)), flush)
+        send(SocketIoPacket.encode(CognigyEvent.encode(event)), flush)
     }
 
     suspend fun close(closeReason: CloseReason = CloseReason(CloseReason.Codes.GOING_AWAY, "")) {

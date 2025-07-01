@@ -12,7 +12,7 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlinx.serialization.json.Json
+import tel.schich.kognigy.json
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -91,7 +91,7 @@ sealed interface EngineIoPacket {
     ) : EngineIoPacket
 
     companion object {
-        fun decode(json: Json, frame: Frame.Text): EngineIoPacket {
+        fun decode(frame: Frame.Text): EngineIoPacket {
             val message = frame.readText()
             if (message.isEmpty()) {
                 return Error(message, "empty message", null)
@@ -114,7 +114,7 @@ sealed interface EngineIoPacket {
             }
         }
 
-        fun encode(json: Json, packet: EngineIoPacket): Frame = when (packet) {
+        fun encode(packet: EngineIoPacket): Frame = when (packet) {
             is Open -> Frame.Text("0${json.encodeToString(packet)}")
             is Close -> Frame.Text("1")
             is Ping -> Frame.Text("2probe")

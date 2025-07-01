@@ -8,6 +8,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
+import tel.schich.kognigy.json
 import tel.schich.kognigy.protocol.CognigyEvent.ProtocolError.Subject.SocketIo
 import kotlin.jvm.JvmInline
 
@@ -188,7 +189,7 @@ sealed interface CognigyEvent {
     }
 
     companion object {
-        fun decode(json: Json, packet: SocketIoPacket.Event): CognigyEvent = when {
+        fun decode(packet: SocketIoPacket.Event): CognigyEvent = when {
             packet.arguments.isEmpty() -> ProtocolError(
                 subject = SocketIo(packet),
                 message = "no arguments given, exactly one needed",
@@ -233,7 +234,7 @@ sealed interface CognigyEvent {
         private inline fun <reified T : Any> data(json: Json, name: String, event: T) =
             SocketIoPacket.Event("/", null, name, listOf(json.encodeToJsonElement(event)))
 
-        fun encode(json: Json, event: EncodableEvent): SocketIoPacket = when (event) {
+        fun encode(event: EncodableEvent): SocketIoPacket = when (event) {
             is ProcessInput -> data(json, ProcessInput.NAME, event)
             is Output -> data(json, Output.NAME, event)
             is TypingStatus -> data(json, TypingStatus.NAME, event)

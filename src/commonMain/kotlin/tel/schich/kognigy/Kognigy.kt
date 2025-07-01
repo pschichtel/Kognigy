@@ -61,10 +61,6 @@ class Kognigy(
     }
 
     private val client = HttpClient(engineFactory) {
-        engine {
-            @Suppress("DEPRECATION")
-            proxy = proxyConfig
-        }
         install(WebSockets)
         install(HttpTimeout) {
             connectTimeoutMillis = connectTimeout.inWholeMilliseconds

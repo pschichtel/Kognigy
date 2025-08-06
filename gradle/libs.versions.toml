@@ -5,10 +5,10 @@ dokka = "2.0.0"
 detekt = "1.23.8"
 kotlinxCoroutines = "1.10.2"
 kotlinxSerialization = "1.9.0"
-kotlinLogging = "7.0.11"
+kotlinLogging = "7.0.12"
 logbackClassic = "1.5.18"
 parserKombinator = "0.3.1"
-axionRelease = "1.19.0"
+axionRelease = "1.19.1"
 mavenCentralPublish = "0.8.0"
 
 [libraries]

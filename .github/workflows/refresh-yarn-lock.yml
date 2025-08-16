@@ -1,0 +1,48 @@
+name: Refresh kotlin-js yarn.lock
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # daily at 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: true
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Remove existing yarn.lock
+        run: |
+          rm -f kotlin-js-store/yarn.lock
+
+      - name: Assemble project (regenerate yarn.lock)
+        run: |
+          ./gradlew --configuration-cache assemble
+
+      - name: Commit and push changes (if any)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "GitHub Workflow"
+          git config user.email "kognigy@pschichtel.github.io"
+          git add kotlin-js-store/yarn.lock
+          if git commit -m "Refresh yarn.lock"
+            git push origin HEAD:main
+          fi

@@ -34,7 +34,7 @@ jobs:
 
       - name: Assemble project (regenerate yarn.lock)
         run: |
-          ./gradlew --configuration-cache assemble
+          ./gradlew --configuration-cache :kotlinStoreYarnLock
 
       - name: Commit and push changes (if any)
         env:

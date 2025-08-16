@@ -1,4 +1,6 @@
 import io.github.zenhelix.gradle.plugin.extension.PublishingType
+import io.github.zenhelix.gradle.plugin.task.PublishBundleMavenCentralTask
+import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
 import pl.allegro.tech.build.axion.release.domain.PredefinedVersionCreator
 
@@ -139,19 +141,87 @@ publishing {
     }
 }
 
-
 val ci = System.getenv("CI") != null
-if (!ci) {
-    signing {
-        useGpgCmd()
-        sign(publishing.publications)
+private val signingKey = System.getenv("SIGNING_KEY")?.ifBlank { null }?.trim()
+private val signingKeyPassword = System.getenv("SIGNING_KEY_PASSWORD")?.ifBlank { null }?.trim() ?: ""
+
+when {
+    signingKey != null -> {
+        logger.lifecycle("Received a signing key, using in-memory pgp keys!")
+        signing {
+            useInMemoryPgpKeys(signingKey, signingKeyPassword)
+            sign(publishing.publications)
+        }
     }
+    !ci -> {
+        logger.lifecycle("Not running in CI, using the gpg command!")
+        signing {
+            useGpgCmd()
+            sign(publishing.publications)
+        }
+    }
+    else -> {
+        logger.lifecycle("Not signing artifacts!")
+    }
+}
+
+private fun Project.getSecret(name: String): Provider<String> = provider {
+    val env = System.getenv(name)
+        ?.ifBlank { null }
+    if (env != null) {
+        return@provider env
+    }
+
+    val propName = name.split("_")
+        .map { it.lowercase() }
+        .joinToString(separator = "") { word ->
+            word.replaceFirstChar { it.uppercase() }
+        }
+        .replaceFirstChar { it.lowercase() }
+
+    property(propName) as String
 }
 
 mavenCentralPortal {
     credentials {
-        username = project.provider { project.property("mavenCentralPortalUsername") as String }
-        password = project.provider { project.property("mavenCentralPortalPassword") as String }
+        username = project.getSecret("MAVEN_CENTRAL_PORTAL_USERNAME")
+        password = project.getSecret("MAVEN_CENTRAL_PORTAL_PASSWORD")
     }
     publishingType = PublishingType.AUTOMATIC
+}
+
+val mavenCentralDeploy by tasks.registering(DefaultTask::class) {
+    group = "publishing"
+    val isSnapshot = project.version.toString().endsWith("-SNAPSHOT")
+
+    if (isSnapshot) {
+        logger.lifecycle("Snapshot deployment!")
+        for (project in allprojects) {
+            val tasks = project.tasks
+                .withType<PublishToMavenRepository>()
+                .matching { it.repository.name == "mavenCentralSnapshots" }
+            dependsOn(tasks)
+        }
+    } else {
+        logger.lifecycle("Release deployment!")
+        for (project in allprojects) {
+            val tasks = project.tasks
+                .withType<PublishBundleMavenCentralTask>()
+            dependsOn(tasks)
+        }
+    }
+}
+
+val githubActions by tasks.registering(DefaultTask::class) {
+    group = "publishing"
+    val deployRefPattern = """^refs/(?:tags/v\d+.\d+.\d+.\d+|heads/main)$""".toRegex()
+    val ref = System.getenv("GITHUB_REF")?.ifBlank { null }?.trim()
+
+    if (ref != null && deployRefPattern.matches(ref)) {
+        logger.lifecycle("Job in $ref will deploy!")
+        dependsOn(mavenCentralDeploy)
+    } else {
+        logger.lifecycle("Job will only build!")
+        dependsOn(tasks.assemble)
+    }
 }

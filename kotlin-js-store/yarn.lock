@@ -227,11 +227,11 @@
     "@types/node" "*"
 
 "@types/node@*":
-  version "24.4.0"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-24.4.0.tgz#4ca9168c016a55ab15b7765ad1674ab807489600"
-  integrity sha512-gUuVEAK4/u6F9wRLznPUU4WGUacSEBDPoC2TrBkw3GAnOLHBL45QdfHOXp1kJ4ypBGLxTOB+t7NJLpKoC3gznQ==
+  version "24.5.0"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-24.5.0.tgz#70a482e6b1d50e603729d74e62a9a43705ddc9d7"
+  integrity sha512-y1dMvuvJspJiPSDZUQ+WMBvF7dpnEqN4x9DDC9ie5Fs/HUZJA3wFp7EhHoVaKX/iI0cRoECV8X2jL8zi0xrHCg==
   dependencies:
-    undici-types "~7.11.0"
+    undici-types "~7.12.0"
 
 "@types/qs@*":
   version "6.14.0"
@@ -525,9 +525,9 @@ balanced-match@^1.0.0:
   integrity sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==
 
 baseline-browser-mapping@^2.8.2:
-  version "2.8.3"
-  resolved "https://registry.yarnpkg.com/baseline-browser-mapping/-/baseline-browser-mapping-2.8.3.tgz#e52e1d836fd242384ee152dce7b62952e4442619"
-  integrity sha512-mcE+Wr2CAhHNWxXN/DdTI+n4gsPc5QpXpWnyCQWiQYIYZX+ZMJ8juXZgjRa/0/YPJo/NSsgW15/YgmI4nbysYw==
+  version "2.8.4"
+  resolved "https://registry.yarnpkg.com/baseline-browser-mapping/-/baseline-browser-mapping-2.8.4.tgz#e553e12272c4965682743705efd8b4b4cf0d709b"
+  integrity sha512-L+YvJwGAgwJBV1p6ffpSTa2KRc69EeeYGYjRVWKs0GKrK+LON0GC0gV+rKSNtALEDvMDqkvCFq9r1r94/Gjwxw==
 
 batch@0.6.1:
   version "0.6.1"
@@ -2305,10 +2305,10 @@ type-is@~1.6.18:
     media-typer "0.3.0"
     mime-types "~2.1.24"
 
-undici-types@~7.11.0:
-  version "7.11.0"
-  resolved "https://registry.yarnpkg.com/undici-types/-/undici-types-7.11.0.tgz#075798115d0bbc4e4fc7c173f38727ca66bfb592"
-  integrity sha512-kt1ZriHTi7MU+Z/r9DOdAI3ONdaR3M3csEaRc6ewa4f4dTvX4cQCbJ4NkEn0ohE4hHtq85+PhPSTY+pO/1PwgA==
+undici-types@~7.12.0:
+  version "7.12.0"
+  resolved "https://registry.yarnpkg.com/undici-types/-/undici-types-7.12.0.tgz#15c5c7475c2a3ba30659529f5cdb4674b622fafb"
+  integrity sha512-goOacqME2GYyOZZfb5Lgtu+1IDmAlAEu5xnD3+xTzS10hT0vzpf0SPjkXwAw9Jm+4n/mQGDP3LO8CPbYROeBfQ==
 
 unpipe@1.0.0, unpipe@~1.0.0:
   version "1.0.0"

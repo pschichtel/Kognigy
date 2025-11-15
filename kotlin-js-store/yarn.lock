@@ -807,9 +807,9 @@ decamelize@^4.0.0:
   integrity sha512-9iE1PgSik9HeIIw2JO94IidnE3eBoQrFJ3w7sFuzSX4DpmZ3v5sZpUiV5Swcf6mQEF+Y0ru8Neo+p+nyh2J+hQ==
 
 default-browser-id@^5.0.0:
-  version "5.0.0"
-  resolved "https://registry.yarnpkg.com/default-browser-id/-/default-browser-id-5.0.0.tgz#a1d98bf960c15082d8a3fa69e83150ccccc3af26"
-  integrity sha512-A6p/pu/6fyBcA1TRz/GqWYPViplrftcW2gZC9q79ngNCKAeR/X3gcEdXQHl4KNXV+3wgIJ1CPkJQ3IHM6lcsyA==
+  version "5.0.1"
+  resolved "https://registry.yarnpkg.com/default-browser-id/-/default-browser-id-5.0.1.tgz#f7a7ccb8f5104bf8e0f71ba3b1ccfa5eafdb21e8"
+  integrity sha512-x1VCxdX4t+8wVfd1so/9w+vQ4vx7lKd2Qp5tDRutErwmR85OgmfX7RlLRMWafRMY7hbEiXIbudNrjOAPa/hL8Q==
 
 default-browser@^5.2.1:
   version "5.3.0"
@@ -876,9 +876,9 @@ ee-first@1.1.1:
   integrity sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==
 
 electron-to-chromium@^1.5.249:
-  version "1.5.251"
-  resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.5.251.tgz#8168db0cb8fcc520bd4e5be720f2d8e0e4f7fe74"
-  integrity sha512-lmyEOp4G0XT3qrYswNB4np1kx90k6QCXpnSHYv2xEsUuEu8JCobpDVYO6vMseirQyyCC6GCIGGxd5szMBa0tRA==
+  version "1.5.253"
+  resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.5.253.tgz#6eaa44333518cb9b74115253da28455ca17e7ec4"
+  integrity sha512-O0tpQ/35rrgdiGQ0/OFWhy1itmd9A6TY9uQzlqj3hKSu/aYpe7UIn5d7CU2N9myH6biZiWF3VMZVuup8pw5U9w==
 
 emoji-regex@^8.0.0:
   version "8.0.0"

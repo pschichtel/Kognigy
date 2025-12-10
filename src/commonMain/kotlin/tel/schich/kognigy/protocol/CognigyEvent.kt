@@ -158,6 +158,18 @@ sealed interface CognigyEvent {
     }
 
     @Serializable
+    data class SwitchedFlow(
+        val fromFlowId: String,
+        val toFlowId: String,
+    ) : OutputEvent, EncodableEvent {
+        override val name = NAME
+
+        companion object {
+            const val NAME = "switchedFlow"
+        }
+    }
+
+    @Serializable
     data object EndpointReady : CognigyEvent, EncodableEvent {
         const val NAME = "endpoint-ready"
         override val name = NAME
@@ -208,6 +220,7 @@ sealed interface CognigyEvent {
                         TypingStatus.NAME -> json.decodeFromJsonElement<TypingStatus>(packet.arguments.first())
                         FinalPing.NAME -> json.decodeFromJsonElement<FinalPing>(packet.arguments.first())
                         TriggeredElement.NAME -> json.decodeFromJsonElement<TriggeredElement>(packet.arguments.first())
+                        SwitchedFlow.NAME -> json.decodeFromJsonElement<SwitchedFlow>(packet.arguments.first())
                         EndpointReady.NAME -> json.decodeFromJsonElement<EndpointReady>(packet.arguments.first())
                         Exception.NAME -> json.decodeFromJsonElement<Exception>(packet.arguments.first())
                         else -> ProtocolError(
@@ -240,6 +253,7 @@ sealed interface CognigyEvent {
             is TypingStatus -> data(json, TypingStatus.NAME, event)
             is FinalPing -> data(json, FinalPing.NAME, event)
             is TriggeredElement -> data(json, TriggeredElement.NAME, event)
+            is SwitchedFlow -> data(json, SwitchedFlow.NAME, event)
             is EndpointReady -> data(json, EndpointReady.NAME, event)
             is Exception -> data(json, Exception.NAME, event)
         }

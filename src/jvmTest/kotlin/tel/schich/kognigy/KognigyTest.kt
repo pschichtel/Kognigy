@@ -19,6 +19,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonElement
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.java.JavaHttpEngine
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
@@ -60,7 +62,7 @@ class KognigyTest {
     ): Kognigy {
         val proxy = System.getenv("COGNIGY_HTTP_PROXY")?.ifBlank { null }?.let { ProxyBuilder.http(it) }
 
-        val configuredEngine = engine.config {
+        val configuredEngine = engine.create {
             this.proxy = proxy
         }
         return Kognigy(configuredEngine, endpointReadyTimeout = endpointReadyTimeout)

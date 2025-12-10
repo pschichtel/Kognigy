@@ -2,7 +2,7 @@ package tel.schich.kognigy
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.HttpClientEngineFactory
+import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.UserAgent
@@ -48,7 +48,7 @@ internal val json = Json {
 }
 
 class Kognigy(
-    engineFactory: HttpClientEngineFactory<*>,
+    engine: HttpClientEngine,
     private val connectTimeout: Duration = 2.seconds,
     private val userAgent: String = "Kognigy",
     /**
@@ -61,7 +61,7 @@ class Kognigy(
     private val sendAcknowledgements: Boolean = true,
 ) {
 
-    private val client = HttpClient(engineFactory) {
+    private val client = HttpClient(engine) {
         install(WebSockets)
         install(HttpTimeout) {
             connectTimeoutMillis = connectTimeout.inWholeMilliseconds

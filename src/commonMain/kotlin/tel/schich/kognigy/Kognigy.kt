@@ -165,6 +165,7 @@ class Kognigy(
             is Frame.Close -> logger.trace { "websocket close: $frame" }
             is Frame.Ping -> logger.trace { "websocket ping: $frame" }
             is Frame.Pong -> logger.trace { "websocket pong: $frame" }
+            // This shouldn't be needed, as the `when` is exhaustive, but the compiler doesn't realize it.
             else -> return CognigyEvent.ProtocolError(
                 subject = Websocket(frame),
                 message = "unknown websocket frame: $frame",

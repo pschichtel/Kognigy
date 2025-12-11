@@ -225,3 +225,8 @@ val githubActions by tasks.registering(DefaultTask::class) {
         dependsOn(tasks.assemble)
     }
 }
+
+detekt {
+    config.from(files("$rootDir/detekt.yml"))
+    parallel = true
+}

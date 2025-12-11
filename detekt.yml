@@ -1,0 +1,12 @@
+style:
+  LoopWithTooManyJumpStatements:
+    active: false
+  MaxLineLength:
+    active: false
+  ReturnCount:
+    active: false
+complexity:
+  CyclomaticComplexMethod:
+    active: false
+  LongMethod:
+    active: false

@@ -28,6 +28,8 @@ scmVersion {
 group = "tel.schich"
 version = scmVersion.version
 val isSnapshot = project.version.toString().endsWith("-SNAPSHOT")
+val snapshotsRepo = "mavenCentralSnapshots"
+val releasesRepo = "mavenLocal"
 
 tasks.withType<Test> {
     useJUnitPlatform()
@@ -104,13 +106,13 @@ val javadocJar by tasks.registering(Jar::class) {
 publishing {
     repositories {
         maven {
-            name = "maven"
-            if (isSnapshot) {
-                url = uri("https://central.sonatype.com/repository/maven-snapshots/")
-                credentials(PasswordCredentials::class)
-            } else {
-                url = layout.buildDirectory.dir("repo").get().asFile.toURI()
-            }
+            name = snapshotsRepo
+            url = uri("https://central.sonatype.com/repository/maven-snapshots/")
+            credentials(PasswordCredentials::class)
+        }
+        maven {
+            name = releasesRepo
+            url = layout.buildDirectory.dir("repo").get().asFile.toURI()
         }
     }
     publications {
@@ -202,15 +204,17 @@ deploy {
 val mavenCentralDeploy by tasks.registering(DefaultTask::class) {
     group = "publishing"
 
+    val repo = if (isSnapshot) {
+        snapshotsRepo
+    } else {
+        dependsOn(tasks.deploy)
+        releasesRepo
+    }
     for (project in allprojects) {
         val tasks = project.tasks
             .withType<PublishToMavenRepository>()
-            .matching { it.repository.name == "maven" }
+            .matching { it.repository.name == repo }
         dependsOn(tasks)
-    }
-
-    if (!isSnapshot) {
-        dependsOn(tasks.deploy)
     }
 
     doFirst {

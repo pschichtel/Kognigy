@@ -1,5 +1,4 @@
-import io.github.zenhelix.gradle.plugin.extension.PublishingType
-import io.github.zenhelix.gradle.plugin.task.PublishBundleMavenCentralTask
+import io.github.danielliu1123.deployer.PublishingType
 import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
 import pl.allegro.tech.build.axion.release.domain.PredefinedVersionCreator
@@ -12,7 +11,7 @@ plugins {
     alias(libs.plugins.dokka)
     alias(libs.plugins.detekt)
     alias(libs.plugins.axionRelease)
-    alias(libs.plugins.mavenCentralPublish)
+    alias(libs.plugins.mavenDeployer)
 }
 
 scmVersion {
@@ -28,6 +27,7 @@ scmVersion {
 
 group = "tel.schich"
 version = scmVersion.version
+val isSnapshot = project.version.toString().endsWith("-SNAPSHOT")
 
 tasks.withType<Test> {
     useJUnitPlatform()
@@ -104,9 +104,13 @@ val javadocJar by tasks.registering(Jar::class) {
 publishing {
     repositories {
         maven {
-            name = "mavenCentralSnapshots"
-            url = uri("https://central.sonatype.com/repository/maven-snapshots/")
-            credentials(PasswordCredentials::class)
+            name = "maven"
+            if (isSnapshot) {
+                url = uri("https://central.sonatype.com/repository/maven-snapshots/")
+                credentials(PasswordCredentials::class)
+            } else {
+                url = layout.buildDirectory.dir("repo").get().asFile.toURI()
+            }
         }
     }
     publications {
@@ -182,32 +186,38 @@ private fun Project.getSecret(name: String): Provider<String> = provider {
     property(propName) as String
 }
 
-mavenCentralPortal {
-    credentials {
-        username = project.getSecret("MAVEN_CENTRAL_PORTAL_USERNAME")
-        password = project.getSecret("MAVEN_CENTRAL_PORTAL_PASSWORD")
+deploy {
+    // dirs to upload, they will all be packaged into one bundle
+    dirs = provider {
+        allprojects
+            .map { it.layout.buildDirectory.dir("repo").get().asFile }
+            .filter { it.exists() }
+            .toList()
     }
+    username = project.getSecret("MAVEN_CENTRAL_PORTAL_USERNAME")
+    password = project.getSecret("MAVEN_CENTRAL_PORTAL_PASSWORD")
     publishingType = PublishingType.AUTOMATIC
 }
 
 val mavenCentralDeploy by tasks.registering(DefaultTask::class) {
     group = "publishing"
-    val isSnapshot = project.version.toString().endsWith("-SNAPSHOT")
 
-    if (isSnapshot) {
-        logger.lifecycle("Snapshot deployment!")
-        for (project in allprojects) {
-            val tasks = project.tasks
-                .withType<PublishToMavenRepository>()
-                .matching { it.repository.name == "mavenCentralSnapshots" }
-            dependsOn(tasks)
-        }
-    } else {
-        logger.lifecycle("Release deployment!")
-        for (project in allprojects) {
-            val tasks = project.tasks
-                .withType<PublishBundleMavenCentralTask>()
-            dependsOn(tasks)
+    for (project in allprojects) {
+        val tasks = project.tasks
+            .withType<PublishToMavenRepository>()
+            .matching { it.repository.name == "maven" }
+        dependsOn(tasks)
+    }
+
+    if (!isSnapshot) {
+        dependsOn(tasks.deploy)
+    }
+
+    doFirst {
+        if (isSnapshot) {
+            logger.lifecycle("Snapshot deployment!")
+        } else {
+            logger.lifecycle("Release deployment!")
         }
     }
 }

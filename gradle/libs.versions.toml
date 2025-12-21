@@ -9,7 +9,7 @@ kotlinLogging = "7.0.13"
 logbackClassic = "1.5.22"
 parserKombinator = "0.3.1"
 axionRelease = "1.21.1"
-mavenCentralPublish = "0.9.0"
+mavenCentralPublish = "0.11.0"
 shadow = "9.3.0"
 
 [libraries]

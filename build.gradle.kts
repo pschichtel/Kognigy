@@ -201,6 +201,14 @@ deploy {
     publishingType = PublishingType.AUTOMATIC
 }
 
+tasks.deploy {
+    for (project in allprojects) {
+        val publishTasks = project.tasks
+            .withType<PublishToMavenRepository>()
+        mustRunAfter(publishTasks)
+    }
+}
+
 val mavenCentralDeploy by tasks.registering(DefaultTask::class) {
     group = "publishing"
 
@@ -215,11 +223,6 @@ val mavenCentralDeploy by tasks.registering(DefaultTask::class) {
             .withType<PublishToMavenRepository>()
             .matching { it.repository.name == repo }
         dependsOn(publishTasks)
-        if (!isSnapshot) {
-            tasks.deploy {
-                mustRunAfter(publishTasks)
-            }
-        }
     }
 
     doFirst {

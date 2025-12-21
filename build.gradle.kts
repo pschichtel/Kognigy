@@ -211,10 +211,15 @@ val mavenCentralDeploy by tasks.registering(DefaultTask::class) {
         releasesRepo
     }
     for (project in allprojects) {
-        val tasks = project.tasks
+        val publishTasks = project.tasks
             .withType<PublishToMavenRepository>()
             .matching { it.repository.name == repo }
-        dependsOn(tasks)
+        dependsOn(publishTasks)
+        if (!isSnapshot) {
+            tasks.deploy {
+                mustRunAfter(publishTasks)
+            }
+        }
     }
 
     doFirst {

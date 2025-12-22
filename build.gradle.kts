@@ -198,7 +198,7 @@ deploy {
     }
     username = project.getSecret("MAVEN_CENTRAL_PORTAL_USERNAME")
     password = project.getSecret("MAVEN_CENTRAL_PORTAL_PASSWORD")
-    publishingType = PublishingType.AUTOMATIC
+    publishingType = PublishingType.WAIT_FOR_PUBLISHED
 }
 
 tasks.deploy {

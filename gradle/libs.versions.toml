@@ -10,7 +10,7 @@ logbackClassic = "1.5.23"
 parserKombinator = "0.3.2"
 axionRelease = "1.21.1"
 mavenDeployer = "0.5.2"
-shadow = "9.3.0"
+shadow = "9.3.1"
 
 [libraries]
 ktorClientCore = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }

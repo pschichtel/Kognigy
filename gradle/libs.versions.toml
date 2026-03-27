@@ -1,6 +1,6 @@
 [versions]
 kotlin = "2.3.20"
-ktor = "3.4.1"
+ktor = "3.4.2"
 dokka = "2.2.0"
 detekt = "1.23.8"
 kotlinxCoroutines = "1.10.2"

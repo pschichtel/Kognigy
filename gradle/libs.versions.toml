@@ -1,16 +1,16 @@
 [versions]
 kotlin = "2.4.0"
-ktor = "3.5.0"
+ktor = "3.5.1"
 dokka = "2.2.0"
 detekt = "1.23.8"
 kotlinxCoroutines = "1.11.0"
 kotlinxSerialization = "1.11.0"
 kotlinLogging = "8.0.4"
-logbackClassic = "1.5.35"
+logbackClassic = "1.5.37"
 parserKombinator = "0.3.2"
 axionRelease = "1.21.2"
 mavenDeployer = "0.5.2"
-shadow = "9.4.2"
+shadow = "9.4.3"
 
 [libraries]
 ktorClientCore = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }

@@ -59,7 +59,7 @@ kotlin {
             }
         }
     }
-    js(IR) {
+    js {
         browser {
             binaries.executable()
             testTask {
@@ -69,7 +69,7 @@ kotlin {
         nodejs()
     }
     sourceSets {
-        val commonMain by getting {
+        named("commonMain") {
             dependencies {
                 implementation(libs.parserKombinator)
                 api(libs.ktorClientCore)
@@ -80,7 +80,7 @@ kotlin {
             }
         }
 
-        val commonTest by getting {
+        named("commonTest") {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(kotlin("test-common"))
@@ -88,7 +88,7 @@ kotlin {
             }
         }
 
-        getByName("jvmTest") {
+        named("jvmTest") {
             dependencies {
                 implementation(libs.ktorClientJava)
                 implementation(libs.logbackClassic)
@@ -97,7 +97,8 @@ kotlin {
     }
 }
 
-val javadocJar by tasks.registering(Jar::class) {
+val javadocJar = tasks.register<Jar>("javadocJar") {
+    description = "Builds the javadoc jar"
     from(dokka.dokkaPublications.html.map { it.outputDirectory })
     dependsOn(tasks.dokkaGeneratePublicationHtml)
     archiveClassifier.set("javadoc")
@@ -213,7 +214,8 @@ tasks.deploy {
     }
 }
 
-val mavenCentralDeploy by tasks.registering(DefaultTask::class) {
+val mavenCentralDeploy = tasks.register<DefaultTask>("mavenCentralDeploy") {
+    description = "Deploys to maven central"
     group = "publishing"
 
     val repo = if (isSnapshot) {
@@ -238,7 +240,8 @@ val mavenCentralDeploy by tasks.registering(DefaultTask::class) {
     }
 }
 
-val githubActions by tasks.registering(DefaultTask::class) {
+val githubActions = tasks.register<DefaultTask>("githubActions") {
+    description = $$"Publishes or just assembles based on $GITHUB_REF ref"
     group = "publishing"
     val deployRefPattern = """^refs/(?:tags/v\d+.\d+.\d+|heads/main)$""".toRegex()
     val ref = System.getenv("GITHUB_REF")?.ifBlank { null }?.trim()

@@ -1659,13 +1659,13 @@ minimatch@^9.0.4, minimatch@^9.0.5:
     brace-expansion "^2.0.2"
 
 minimizer-webpack-plugin@^5.6.1:
-  version "5.13.0"
-  resolved "https://registry.yarnpkg.com/minimizer-webpack-plugin/-/minimizer-webpack-plugin-5.13.0.tgz#3624cd9556b0645aceed66f5e7466586d0635ebe"
-  integrity sha512-OO1NF2zHj6sf4CNv2AsUWYcS8WEwkVKQDXxxKzlOxx1Xl+WlqYtVC+oNlGNwGkLAOnpj277BSHypWwRtd9w4JQ==
+  version "5.13.1"
+  resolved "https://registry.yarnpkg.com/minimizer-webpack-plugin/-/minimizer-webpack-plugin-5.13.1.tgz#664cdfbab756e1b93ae17eb7ff70f1a5620584d7"
+  integrity sha512-1mhAfvachWYYOm8tpmany5NLuvP+F2wxZWBSX8DC0uFS2wJpM9q3rWgN9wBooAH9d5V12wX0BjyJe4fMjHMarQ==
   dependencies:
     "@jridgewell/trace-mapping" "^0.3.31"
     jest-worker "^27.4.5"
-    schema-utils "^4.3.3"
+    schema-utils "^4.6.0"
     terser "^5.51.0"
 
 "minipass@^5.0.0 || ^6.0.2 || ^7.0.0", minipass@^7.1.2:
@@ -2028,10 +2028,10 @@ safe-buffer@5.2.1, safe-buffer@^5.1.0:
   resolved "https://registry.yarnpkg.com/safer-buffer/-/safer-buffer-2.1.2.tgz#44fa161b0187b9549dd84bb91802f9bd8385cd6a"
   integrity sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==
 
-schema-utils@^4.3.3:
-  version "4.6.0"
-  resolved "https://registry.yarnpkg.com/schema-utils/-/schema-utils-4.6.0.tgz#d4a5f923cbee6e65f12b33c6d7890ac1281cef1f"
-  integrity sha512-q8cvkEp4bRQdWcLvB3vmxpZAlS25Hxws10nCK+rUxUfuB7e430dYZZJ5z5yAoOGBbbDtve8cUg8DFfc3ue12TA==
+schema-utils@^4.3.3, schema-utils@^4.6.0:
+  version "4.8.1"
+  resolved "https://registry.yarnpkg.com/schema-utils/-/schema-utils-4.8.1.tgz#d005632a0ca18522d903d82e1dcccbddcd57e7bb"
+  integrity sha512-x39pYlJPyH7Uge5QO64B9XGP9zLDc9WNmiQZc+CE3IzZPvMu3lHOuAMGpYNoPixEL7MSWlGhYTg5UlLSL8G6iw==
   dependencies:
     "@types/json-schema" "^7.0.15"
     ajv "^8.20.0"
@@ -2375,9 +2375,9 @@ vary@^1.1.2, vary@~1.1.2:
   integrity sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==
 
 watchpack@^2.5.2:
-  version "2.6.2"
-  resolved "https://registry.yarnpkg.com/watchpack/-/watchpack-2.6.2.tgz#19c9887dd2d1e3746584693ac6f4a0af49657814"
-  integrity sha512-67nxRd7I5uAyn+KamYsCqU30iVgCgZ4aj8ZOGzmxs7zNPuvlnoYltm6+6JkOjEcD6WVXdu1BfH+gVQs3FUuW7Q==
+  version "2.6.3"
+  resolved "https://registry.yarnpkg.com/watchpack/-/watchpack-2.6.3.tgz#880d8c437c425104b2da58bee6bd8fbc33bf78d3"
+  integrity sha512-s3NZy0QpTY9qGqzc0wtz4qI28z3+5qKbbAec4MV4G9N3CfgZ9wgvQRr0cl2jh/tqkWG1NWHkmVMHZpCamev5Wg==
   dependencies:
     graceful-fs "^4.1.2"
 
@@ -2396,9 +2396,9 @@ webpack-cli@7.2.1:
     webpack-merge "^6.0.1"
 
 webpack-dev-middleware@^8.0.3:
-  version "8.4.0"
-  resolved "https://registry.yarnpkg.com/webpack-dev-middleware/-/webpack-dev-middleware-8.4.0.tgz#9ef518db27950a7acd8eda1349769b3fee8ad9fb"
-  integrity sha512-a/YonExZBacvdZUdVmIFYJ4GbX8FaHXZFdEgQv9T24KBvrVW1zI2wVoWBxalpCW+rNm5rzfNBtFbHIYwypV/lQ==
+  version "8.5.0"
+  resolved "https://registry.yarnpkg.com/webpack-dev-middleware/-/webpack-dev-middleware-8.5.0.tgz#01e56fa808e0111973a80a05c6471fe9052ec659"
+  integrity sha512-+rXF28E5GKr7VnLH5qJaGIKLNPkthlA0VhqBFp/K6mjjCzOd6q34vYc2/3/ysRTjxmN01S98r1LwTTpWXDzWWA==
   dependencies:
     memfs "^4.68.2"
     mime-db "^1.54.0"

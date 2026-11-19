@@ -1013,9 +1013,9 @@ ee-first@1.1.1:
   integrity sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==
 
 electron-to-chromium@^1.5.486:
-  version "1.5.489"
-  resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.5.489.tgz#4d7be5051f3ea8f29ec0c32fc1ef16b944f3dc8a"
-  integrity sha512-1cF87WItryk9lj5wg5SLsNegUihdkcHuOfrANPpO02y/d2krm1Oc3GjA9KBwlT5o145FTa1bbjdLc7pZnvtnYQ==
+  version "1.5.491"
+  resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.5.491.tgz#c00de53d4dfab5363994b6ad1521e3c87dcc1fbc"
+  integrity sha512-zMOQrvaTekJMwENqx1Rnyl3qieqGxIui5CRu9g6ktKzQ/T54fq0Qfr3V/SEhGrkStWI3eYMSzMN4rbyFwfQSzA==
 
 emoji-regex@^8.0.0:
   version "8.0.0"
@@ -1745,9 +1745,9 @@ node-releases@^2.0.64:
   integrity sha512-PfvofsGQ+MiOQIPkX9fU8ELUWmy5zL74CdQaph/ismKszfFkfwXaw0cGiwbwym2hT9k5+mdyl8O5WQ1MD8EHmA==
 
 object-inspect@^1.13.3, object-inspect@^1.13.4:
-  version "1.13.4"
-  resolved "https://registry.yarnpkg.com/object-inspect/-/object-inspect-1.13.4.tgz#8375265e21bc20d0fa582c22e1b13485d6e00213"
-  integrity sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew==
+  version "1.14.0"
+  resolved "https://registry.yarnpkg.com/object-inspect/-/object-inspect-1.14.0.tgz#8d373f7293f9d0ba656de41bdb7a55992255af46"
+  integrity sha512-IVgHNlp/jwQX271+Xzoq9LZNTWXxZK+cEOrGBOBxXNbn7fapnZ+Ts6TVMgNOuAezwG2wdtnMX97tTPK6VEnuOQ==
 
 on-finished@^2.4.1:
   version "2.4.2"
@@ -2028,9 +2028,9 @@ safe-buffer@5.2.1, safe-buffer@^5.1.0:
   integrity sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==
 
 schema-utils@^4.3.3, schema-utils@^4.6.0:
-  version "4.8.3"
-  resolved "https://registry.yarnpkg.com/schema-utils/-/schema-utils-4.8.3.tgz#128b33e63093a0b225b09570b9ea58ea65150cf2"
-  integrity sha512-qIfo3f+lRNqnMPgpXSKvUhsT3pY5U+ppmgGr4j8LanFP3W/Ze+xj8DY/dPb5qVu3m6qFIMyMWKVRLNKxrNhxWg==
+  version "4.8.5"
+  resolved "https://registry.yarnpkg.com/schema-utils/-/schema-utils-4.8.5.tgz#aa5abf4653e45af6a4c7c0ab7ef11d6f18ffcf22"
+  integrity sha512-K1RRP7aTUAY2lGXNzPwjMK6AMMzbETdpF3pTPMEnH/RrpmPx6K1X47/gSebrV+1I9pRcgpwZwqpYBlyZAsliiw==
   dependencies:
     "@types/json-schema" "^7.0.15"
     ajv "^8.20.0"
@@ -2167,9 +2167,9 @@ signal-exit@^4.0.1:
   integrity sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==
 
 source-map-js@^1.0.2:
-  version "1.2.2"
-  resolved "https://registry.yarnpkg.com/source-map-js/-/source-map-js-1.2.2.tgz#79fb88d97535a21cb27162cb05d211b67acea4ab"
-  integrity sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==
+  version "1.2.3"
+  resolved "https://registry.yarnpkg.com/source-map-js/-/source-map-js-1.2.3.tgz#4cf1e31a10db87e8234840ebc2b85a255cf7705e"
+  integrity sha512-xj+WrAkyv5Qp+t7r9N5HvCBu7g1qOe6CKRNpq22X1GGcPEQADFU54v5qsPVs3/vrUFQ7XivFrcAVKA2stI0kWA==
 
 source-map-loader@5.0.0:
   version "5.0.0"
@@ -2447,9 +2447,9 @@ webpack-merge@^6.0.1:
     wildcard "^2.0.1"
 
 webpack-sources@^3.5.0:
-  version "3.7.0"
-  resolved "https://registry.yarnpkg.com/webpack-sources/-/webpack-sources-3.7.0.tgz#6c145ac83f8220ef20d4b01b9e7d5c15b1598b09"
-  integrity sha512-PdUhbCycwEgiS1hB/FBDksWKg/ashAIuJKqwdbPn8/dFVgU5LxQiBvG0js6VRRIzPujMrStYCczywp82P0KWng==
+  version "3.7.1"
+  resolved "https://registry.yarnpkg.com/webpack-sources/-/webpack-sources-3.7.1.tgz#f8d91f5ae9f5d4940c67333283044a7d80100480"
+  integrity sha512-mcxs7A2LsEdwsNqQburqS4QHPR2Ca3NGplUakn6J5GPQvnVZ4oD4IM4FJcT3f8AVN2e2EsjuIVxKj4rorHvyuQ==
 
 webpack@5.108.1:
   version "5.108.1"
